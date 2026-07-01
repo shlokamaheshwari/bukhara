@@ -222,7 +222,7 @@ function pickCardToDiscard(hand: Card[], recentDiscards: Card[]): string {
 
   // Also avoid dumping a card the opponents were just discarding — if opponents
   // threw ranks R±1, they might want R.
-  const recentRanks = new Set(recentDiscards.map((c) => c.rank));
+  const recentRanks = new Set<number>(recentDiscards.map((c) => c.rank as number));
 
   const candidates = hand.filter((c) => c.rank !== JOKER_RANK).sort((a, b) => cardValue(b.rank) - cardValue(a.rank));
   const isolated = candidates.filter(isIsolated);

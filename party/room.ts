@@ -1,8 +1,9 @@
-// Room party — one instance per room code. Holds authoritative game state
-// for that room. Clients send lobby ops and move messages; server validates
-// against the rules engine and broadcasts a redacted game state to everyone.
+// Room Durable Object — one instance per room code. Holds authoritative game
+// state, verifies incoming WebSocket connections against TOKEN_SECRET, and
+// broadcasts a redacted game state to everyone. Game logic (rules engine +
+// bot) lives in the shared src/game/* and bot.ts modules.
 
-import type * as Party from 'partykit/server';
+import { DurableObject } from 'cloudflare:workers';
 import { verifyToken } from './util';
 import { newGame } from '../src/game/newGame';
 import {
@@ -25,6 +26,11 @@ import type {
 } from '../src/net/messages';
 import { pickBotMove } from './bot';
 
+type Env = {
+  TOKEN_SECRET: string;
+  INVITE_CODE: string;
+};
+
 type Presence = {
   connectionId: string; // for bots: `bot-${seatIdx}`
   username: string;
@@ -36,42 +42,56 @@ type Presence = {
   isBot: boolean;
 };
 
-export default class RoomServer implements Party.Server {
-  presences: Map<string, Presence> = new Map(); // connectionId → presence
+export class RoomDO extends DurableObject<Env> {
+  connections: Map<string, WebSocket> = new Map();
+  presences: Map<string, Presence> = new Map();
   started = false;
   game: Game | null = null;
   seatToUsername: Record<PlayerId, string | null> = { 0: null, 1: null, 2: null, 3: null };
+  roomCode = '';
 
-  constructor(readonly party: Party.Party) {}
-
-  static async onBeforeConnect(
-    req: Party.Request,
-    lobby: Party.FetchLobby,
-  ): Promise<Response | Request> {
-    const url = new URL(req.url);
+  async fetch(request: Request): Promise<Response> {
+    if (request.headers.get('Upgrade') !== 'websocket') {
+      return new Response('Expected WebSocket', { status: 426 });
+    }
+    const url = new URL(request.url);
     const token = url.searchParams.get('token');
     if (!token) return new Response('Missing token', { status: 401 });
-
-    const secret =
-      (lobby.env as Record<string, string | undefined>).TOKEN_SECRET ?? 'dev-secret-change-me';
-    const payload = await verifyToken(token, secret);
+    const payload = await verifyToken(token, this.env.TOKEN_SECRET);
     if (!payload || typeof payload.username !== 'string') {
       return new Response('Invalid or expired token', { status: 401 });
     }
-    const forwarded = new Request(req);
-    forwarded.headers.set('X-User', String(payload.username));
-    forwarded.headers.set('X-Display', String(payload.displayName ?? payload.username));
-    return forwarded;
+    const username = String(payload.username);
+    const displayName = String(payload.displayName ?? payload.username);
+
+    // The room code is baked into the URL path. Cache it so state broadcasts
+    // include it (clients display it in the lobby UI).
+    const match = url.pathname.match(/\/parties\/main\/([^/]+)/);
+    if (match) this.roomCode = match[1].toLowerCase();
+
+    const pair = new WebSocketPair();
+    const client = pair[0];
+    const server = pair[1];
+    server.accept();
+    const connId = crypto.randomUUID();
+    this.connections.set(connId, server);
+
+    this.onConnect(connId, username, displayName);
+
+    server.addEventListener('message', (event) => {
+      if (typeof event.data === 'string') this.onMessage(event.data, connId);
+    });
+    server.addEventListener('close', () => this.onClose(connId));
+    server.addEventListener('error', () => this.onClose(connId));
+
+    return new Response(null, { status: 101, webSocket: client });
   }
 
-  onConnect(conn: Party.Connection, ctx: Party.ConnectionContext): void {
-    const username = ctx.request.headers.get('X-User') ?? 'unknown';
-    const displayName = ctx.request.headers.get('X-Display') ?? username;
-
-    // If this user already had a connection, migrate their presence.
+  private onConnect(connId: string, username: string, displayName: string): void {
+    // If the same user already had a connection, migrate their presence.
     const previous = [...this.presences.values()].find((p) => p.username === username);
     const presence: Presence = {
-      connectionId: conn.id,
+      connectionId: connId,
       username,
       displayName: previous?.displayName ?? displayName,
       seatIdx: previous?.seatIdx ?? null,
@@ -81,38 +101,32 @@ export default class RoomServer implements Party.Server {
       isBot: false,
     };
     if (previous) this.presences.delete(previous.connectionId);
-    this.presences.set(conn.id, presence);
-
+    this.presences.set(connId, presence);
     this.broadcast();
   }
 
-  onClose(conn: Party.Connection): void {
-    const presence = this.presences.get(conn.id);
+  private onClose(connId: string): void {
+    this.connections.delete(connId);
+    const presence = this.presences.get(connId);
     if (!presence) return;
     presence.online = false;
     this.broadcast();
-    // If the game hasn't started, fully evict after a grace period so a stale
-    // seat doesn't block others. Once the game is running, keep the seat so
-    // they can reconnect and resume.
+    // If not in a game yet, fully evict after a grace period.
     if (!this.started) {
       setTimeout(() => {
-        const still = this.presences.get(conn.id);
+        const still = this.presences.get(connId);
         if (still && !still.online) {
-          this.presences.delete(conn.id);
+          this.presences.delete(connId);
           this.broadcast();
         }
       }, 15_000);
     }
   }
 
-  onMessage(raw: string, sender: Party.Connection): void {
+  private onMessage(raw: string, senderId: string): void {
     let data: ClientMessage;
-    try {
-      data = JSON.parse(raw) as ClientMessage;
-    } catch {
-      return;
-    }
-    const presence = this.presences.get(sender.id);
+    try { data = JSON.parse(raw) as ClientMessage; } catch { return; }
+    const presence = this.presences.get(senderId);
     if (!presence) return;
 
     switch (data.type) {
@@ -160,17 +174,14 @@ export default class RoomServer implements Party.Server {
         break;
       }
       default:
-        // Move messages
-        this.handleMove(data as MoveMessage, sender, presence);
+        this.handleMove(data as MoveMessage, senderId, presence);
         return;
     }
-
     this.broadcast();
   }
 
   private addBot(seatIdx: 0 | 1 | 2 | 3): void {
     const id = `bot-${seatIdx}`;
-    // Remove any prior bot at this slot, then insert a fresh one.
     this.presences.delete(id);
     const bot: Presence = {
       connectionId: id,
@@ -190,7 +201,6 @@ export default class RoomServer implements Party.Server {
     const seated = [...this.presences.values()].filter((p) => p.seatIdx !== null);
     if (seated.length !== 4 || !seated.every((p) => p.isReady)) return;
 
-    // Snapshot who sits where before we lock the game state.
     const bySeat: Record<PlayerId, string> = { 0: '', 1: '', 2: '', 3: '' };
     const names: [string, string, string, string] = ['?', '?', '?', '?'];
     for (const p of seated) {
@@ -201,13 +211,9 @@ export default class RoomServer implements Party.Server {
     this.seatToUsername = bySeat;
     this.game = newGame({ playerNames: names });
     this.started = true;
-    // If a bot starts the match, kick off its play loop.
     this.scheduleBotTurnIfNeeded();
   }
 
-  // If it's currently a bot's turn, schedule that bot to act after a short
-  // pause so humans see the moves at a natural pace. Repeats until control
-  // returns to a human or the match ends.
   private scheduleBotTurnIfNeeded(): void {
     if (!this.started || !this.game) return;
     if (this.game.currentMatch.phase !== 'playing') return;
@@ -220,42 +226,25 @@ export default class RoomServer implements Party.Server {
 
   private playBotTurn(seat: PlayerId): void {
     if (!this.started || !this.game) return;
-    if (this.game.currentMatch.currentTurn !== seat) return; // turn already changed
+    if (this.game.currentMatch.currentTurn !== seat) return;
 
     const match = this.game.currentMatch;
     const move = pickBotMove(match, seat);
     if (!move) return;
     let result: { ok: true; match: typeof match } | { ok: false; reason: string };
     switch (move.type) {
-      case 'move-draw-stock':
-        result = drawStock(match);
-        break;
-      case 'move-pick-discard':
-        result = pickDiscard(match);
-        break;
-      case 'move-drop-meld':
-        result = dropMeld(match, move.input);
-        break;
-      case 'move-add-to-sequence':
-        result = addToSequence(match, move.input);
-        break;
-      case 'move-add-to-triplet':
-        result = addToTriplet(match, move.input);
-        break;
-      case 'move-joker':
-        result = moveJoker(match, move.meldId, move.jokerCardId, move.newActingAs);
-        break;
-      case 'move-discard':
-        result = discard(match, move.cardId);
-        break;
-      default:
-        return;
+      case 'move-draw-stock': result = drawStock(match); break;
+      case 'move-pick-discard': result = pickDiscard(match); break;
+      case 'move-drop-meld': result = dropMeld(match, move.input); break;
+      case 'move-add-to-sequence': result = addToSequence(match, move.input); break;
+      case 'move-add-to-triplet': result = addToTriplet(match, move.input); break;
+      case 'move-joker': result = moveJoker(match, move.meldId, move.jokerCardId, move.newActingAs); break;
+      case 'move-discard': result = discard(match, move.cardId); break;
+      default: return;
     }
-    if (!result.ok) return; // bot picked an illegal move — bail rather than loop
+    if (!result.ok) return;
     this.game = { ...this.game, currentMatch: result.match };
     this.broadcast();
-    // Bot may still have more actions this turn (e.g. dropped meld, now needs
-    // to discard). Loop until the turn advances or match ends.
     if (this.game.currentMatch.currentTurn === seat) {
       setTimeout(() => this.playBotTurn(seat), 700);
     } else {
@@ -263,7 +252,6 @@ export default class RoomServer implements Party.Server {
     }
   }
 
-  // Which seat (PlayerId) the given username occupies, or null.
   private seatFor(username: string): PlayerId | null {
     for (const s of [0, 1, 2, 3] as PlayerId[]) {
       if (this.seatToUsername[s] === username) return s;
@@ -271,20 +259,19 @@ export default class RoomServer implements Party.Server {
     return null;
   }
 
-  private handleMove(msg: MoveMessage, sender: Party.Connection, presence: Presence): void {
+  private handleMove(msg: MoveMessage, senderId: string, presence: Presence): void {
+    const senderWs = this.connections.get(senderId);
     if (!this.started || !this.game) return;
     const mySeat = this.seatFor(presence.username);
     if (mySeat === null) {
-      this.sendTo(sender, { type: 'move-rejected', reason: 'You are not seated in this game' });
+      if (senderWs) this.sendTo(senderWs, { type: 'move-rejected', reason: 'You are not seated in this game' });
       return;
     }
 
-    // For a "next-match" message we just advance; other ops must come from the
-    // player whose turn it currently is.
     if (msg.type === 'next-match') {
-      const match = this.game.currentMatch;
-      if (match.phase === 'playing') {
-        this.sendTo(sender, { type: 'move-rejected', reason: 'Match is still in progress' });
+      const m = this.game.currentMatch;
+      if (m.phase === 'playing') {
+        if (senderWs) this.sendTo(senderWs, { type: 'move-rejected', reason: 'Match is still in progress' });
         return;
       }
       this.game = endMatchAndAdvance(this.game);
@@ -294,40 +281,25 @@ export default class RoomServer implements Party.Server {
     }
 
     if (mySeat !== this.game.currentMatch.currentTurn) {
-      this.sendTo(sender, { type: 'move-rejected', reason: 'Not your turn' });
+      if (senderWs) this.sendTo(senderWs, { type: 'move-rejected', reason: 'Not your turn' });
       return;
     }
 
     const match = this.game.currentMatch;
     let result: { ok: true; match: typeof match } | { ok: false; reason: string };
     switch (msg.type) {
-      case 'move-draw-stock':
-        result = drawStock(match);
-        break;
-      case 'move-pick-discard':
-        result = pickDiscard(match);
-        break;
-      case 'move-drop-meld':
-        result = dropMeld(match, msg.input);
-        break;
-      case 'move-add-to-sequence':
-        result = addToSequence(match, msg.input);
-        break;
-      case 'move-add-to-triplet':
-        result = addToTriplet(match, msg.input);
-        break;
-      case 'move-joker':
-        result = moveJoker(match, msg.meldId, msg.jokerCardId, msg.newActingAs);
-        break;
-      case 'move-discard':
-        result = discard(match, msg.cardId);
-        break;
-      default:
-        result = { ok: false, reason: 'Unknown move' };
+      case 'move-draw-stock': result = drawStock(match); break;
+      case 'move-pick-discard': result = pickDiscard(match); break;
+      case 'move-drop-meld': result = dropMeld(match, msg.input); break;
+      case 'move-add-to-sequence': result = addToSequence(match, msg.input); break;
+      case 'move-add-to-triplet': result = addToTriplet(match, msg.input); break;
+      case 'move-joker': result = moveJoker(match, msg.meldId, msg.jokerCardId, msg.newActingAs); break;
+      case 'move-discard': result = discard(match, msg.cardId); break;
+      default: result = { ok: false, reason: 'Unknown move' };
     }
 
     if (!result.ok) {
-      this.sendTo(sender, { type: 'move-rejected', reason: result.reason });
+      if (senderWs) this.sendTo(senderWs, { type: 'move-rejected', reason: result.reason });
       return;
     }
     this.game = { ...this.game, currentMatch: result.match };
@@ -340,7 +312,7 @@ export default class RoomServer implements Party.Server {
   private buildRoomState(you: Presence): RoomStateMessage {
     return {
       type: 'room-state',
-      roomCode: this.party.id,
+      roomCode: this.roomCode,
       started: this.started,
       you: you.username,
       players: [...this.presences.values()].map(({ connectionId: _c, ...p }) => p),
@@ -366,16 +338,16 @@ export default class RoomServer implements Party.Server {
   }
 
   private broadcast(): void {
-    for (const conn of this.party.getConnections()) {
-      const presence = this.presences.get(conn.id);
+    for (const [connId, ws] of this.connections.entries()) {
+      const presence = this.presences.get(connId);
       if (!presence) continue;
-      this.sendTo(conn, this.buildRoomState(presence));
+      this.sendTo(ws, this.buildRoomState(presence));
       const gs = this.buildGameState(presence);
-      if (gs) this.sendTo(conn, gs);
+      if (gs) this.sendTo(ws, gs);
     }
   }
 
-  private sendTo(conn: Party.Connection, msg: ServerMessage): void {
-    conn.send(JSON.stringify(msg));
+  private sendTo(ws: WebSocket, msg: ServerMessage): void {
+    try { ws.send(JSON.stringify(msg)); } catch { /* connection dropped */ }
   }
 }
