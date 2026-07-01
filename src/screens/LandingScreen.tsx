@@ -25,7 +25,7 @@ export default function LandingScreen({
   return (
     <div className="landing-screen">
       <div className="landing-panel">
-        <h1 className="auth-logo"><img src="/logo.jpg" alt="Bukhara" /></h1>
+        <h1 className="auth-logo">Bukhara</h1>
         <p className="landing-greet">Welcome, <strong>{displayName}</strong></p>
 
         <button

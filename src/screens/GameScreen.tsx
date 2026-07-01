@@ -191,7 +191,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
   return (
     <div className="table-app">
       <header className="topbar">
-        <h1 className="brand-logo"><img src="/logo.jpg" alt="Bukhara" /></h1>
+        <h1>Bukhara</h1>
         <div className="scores">
           <div className={`score-chip team-a`}>
             Team A · {game.teams.A.totalScore}

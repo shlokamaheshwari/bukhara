@@ -42,7 +42,7 @@ export default function AuthScreen({
   return (
     <div className="auth-screen">
       <div className="auth-panel">
-        <h1 className="auth-logo"><img src="/logo.jpg" alt="Bukhara" /></h1>
+        <h1 className="auth-logo">Bukhara</h1>
         <div className="auth-tabs">
           <button
             className={mode === 'login' ? 'active' : ''}

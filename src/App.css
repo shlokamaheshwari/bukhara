@@ -112,16 +112,11 @@ body {
 }
 .topbar h1 {
   margin: 0;
-  display: flex;
-  align-items: center;
-  height: 44px;
-}
-.topbar h1.brand-logo img {
-  height: 100%;
-  width: auto;
-  display: block;
-  border-radius: 8px;
-  object-fit: contain;
+  font-family: 'Fraunces', 'Georgia', serif;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-primary);
 }
 
 .scores { display: flex; gap: 10px; align-items: center; }
@@ -837,21 +832,15 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
 .lobby-panel.wide { max-width: 900px; padding: 34px 38px; }
 
 .auth-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-family: 'Fraunces', serif;
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--text-primary);
+  text-align: center;
   margin: 0 0 28px;
-  height: 80px;
 }
-.auth-logo img {
-  height: 100%;
-  width: auto;
-  display: block;
-  border-radius: 12px;
-  object-fit: contain;
-}
-.auth-logo.small { height: 44px; margin: 0; }
-.auth-logo.small img { border-radius: 8px; }
+.auth-logo.small { font-size: 24px; letter-spacing: 1.5px; margin: 0; }
 
 .auth-tabs {
   display: flex; gap: 4px; padding: 4px;

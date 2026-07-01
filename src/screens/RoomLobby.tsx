@@ -22,7 +22,7 @@ export default function RoomLobby({ roomState, send, onLeaveRoom }: Props) {
     <div className="lobby-screen">
       <div className="lobby-panel wide">
         <div className="lobby-head">
-          <h1 className="auth-logo small"><img src="/logo.jpg" alt="Bukhara" /></h1>
+          <h1 className="auth-logo small">Bukhara</h1>
           <div className="lobby-code">
             <span className="lobby-code-label">Room code</span>
             <button
