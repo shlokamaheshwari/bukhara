@@ -1,0 +1,420 @@
+import type {
+  Card,
+  Match,
+  Meld,
+  PlayerId,
+  SequenceMeld,
+  SequenceMeldCard,
+  SeqPos,
+  TripletMeld,
+  TripletMeldCard,
+} from './types';
+import type { SequenceAttempt, TripletAttempt } from './melds';
+import { validateSequence, validateTriplet } from './melds';
+import { meldCardTotal, isPureSequence } from './scoring';
+
+// Every move returns either the next Match state or a rejection reason.
+export type MoveResult =
+  | { ok: true; match: Match }
+  | { ok: false; reason: string };
+
+// ---- Helpers -----------------------------------------------------------
+
+function currentPlayer(match: Match) {
+  return match.players[match.currentTurn];
+}
+
+function currentTeam(match: Match) {
+  return match.teams[currentPlayer(match).teamId];
+}
+
+// Removes cards from a player's hand by id. Returns updated hand or null if
+// any id was not found.
+function removeFromHand(hand: Card[], ids: string[]): Card[] | null {
+  const set = new Set(ids);
+  const kept = hand.filter((c) => !set.has(c.id));
+  if (kept.length !== hand.length - ids.length) return null;
+  return kept;
+}
+
+// Team box holds at least one pure sequence after all pending changes.
+function boxHasPureSequence(box: Meld[]): boolean {
+  return box.some((m) => isPureSequence(m));
+}
+
+
+// Advance to the next player and reset per-turn state.
+function advanceTurn(match: Match): Match {
+  const next = ((match.currentTurn + 1) % 4) as PlayerId;
+  return {
+    ...match,
+    currentTurn: next,
+    turnPhase: 'awaiting-draw',
+    meldsCreatedThisTurn: [],
+  };
+}
+
+// ---- Move: draw stock --------------------------------------------------
+
+export function drawStock(match: Match): MoveResult {
+  if (match.phase !== 'playing') return { ok: false, reason: 'Match is over' };
+  if (match.turnPhase !== 'awaiting-draw') return { ok: false, reason: 'Not in draw phase' };
+  if (match.stock.length === 0) return { ok: false, reason: 'Stock is empty' };
+  const [top, ...rest] = match.stock;
+  const player = currentPlayer(match);
+  return {
+    ok: true,
+    match: {
+      ...match,
+      stock: rest,
+      players: {
+        ...match.players,
+        [player.id]: { ...player, hand: [...player.hand, top] },
+      },
+      turnPhase: 'may-meld',
+    },
+  };
+}
+
+// ---- Move: pick up discard pile ---------------------------------------
+
+export function pickDiscard(match: Match): MoveResult {
+  if (match.phase !== 'playing') return { ok: false, reason: 'Match is over' };
+  if (match.turnPhase !== 'awaiting-draw') return { ok: false, reason: 'Not in draw phase' };
+  if (match.discard.length === 0) return { ok: false, reason: 'Discard pile is empty' };
+  const player = currentPlayer(match);
+  return {
+    ok: true,
+    match: {
+      ...match,
+      discard: [],
+      players: {
+        ...match.players,
+        [player.id]: { ...player, hand: [...player.hand, ...match.discard] },
+      },
+      turnPhase: 'may-meld',
+    },
+  };
+}
+
+// ---- Move: drop a new meld to team's sequence box ---------------------
+
+export type DropSequenceInput = { kind: 'sequence'; cards: SequenceAttempt };
+export type DropTripletInput = { kind: 'triplet'; cards: TripletAttempt };
+export type DropMeldInput = DropSequenceInput | DropTripletInput;
+
+export function dropMeld(match: Match, input: DropMeldInput): MoveResult {
+  if (match.phase !== 'playing') return { ok: false, reason: 'Match is over' };
+  if (match.turnPhase !== 'may-meld') return { ok: false, reason: 'Must draw before melding' };
+
+  const player = currentPlayer(match);
+  const team = currentTeam(match);
+
+  const cardIds = input.cards.map((c) => c.card.id);
+  const newHand = removeFromHand(player.hand, cardIds);
+  if (newHand === null) return { ok: false, reason: 'Meld includes cards not in your hand' };
+
+  let meld: Meld;
+  if (input.kind === 'sequence') {
+    const v = validateSequence(input.cards);
+    if (!v.ok) return { ok: false, reason: v.reason };
+    meld = v.meld;
+  } else {
+    // Triplets are only allowed once team's box has at least one pure sequence.
+    // This applies even if the triplet is being added same-turn as a pure sequence —
+    // the pure sequence must be dropped first.
+    if (!boxHasPureSequence(team.sequenceBox)) {
+      return { ok: false, reason: 'Cannot drop a triplet before team has a pure sequence in the box' };
+    }
+    const v = validateTriplet(input.cards);
+    if (!v.ok) return { ok: false, reason: v.reason };
+    meld = v.meld;
+  }
+
+  // If team's very first drop, the first meld must be a pure sequence.
+  const isFirstEverMeld = !team.firstDropDone && team.sequenceBox.length === 0;
+  if (isFirstEverMeld && !isPureSequence(meld)) {
+    return { ok: false, reason: "Team's first drop must be a pure sequence" };
+  }
+
+  // 1000+ rule: on a team's first-drop turn (post-1000), all melds must come
+  // from the same player. Because we don't yet know all melds, enforce
+  // "matches previous same-turn dropper" here; total-sum check happens on discard.
+  if (
+    !team.firstDropDone &&
+    team.mustFirstDropReach100 &&
+    match.meldsCreatedThisTurn.length > 0
+  ) {
+    // Someone already dropped this turn — must be same player (enforced by turn ownership,
+    // since only current player can drop). Silent OK.
+  }
+
+  const newBox = [...team.sequenceBox, meld];
+  const newTeam = {
+    ...team,
+    sequenceBox: newBox,
+    // firstDropByPlayer is provisionally the current player; committed at discard.
+    firstDropByPlayer: team.firstDropDone ? team.firstDropByPlayer : player.id,
+  };
+
+  return {
+    ok: true,
+    match: {
+      ...match,
+      players: {
+        ...match.players,
+        [player.id]: { ...player, hand: newHand },
+      },
+      teams: { ...match.teams, [team.id]: newTeam },
+      meldsCreatedThisTurn: [...match.meldsCreatedThisTurn, meld.id],
+    },
+  };
+}
+
+// ---- Move: add cards to an existing sequence --------------------------
+
+// Optional joker-position adjustment applied to an already-in-meld card by id.
+export type JokerMove = { cardId: string; newActingAs: SeqPos };
+
+export type AddToSequenceInput = {
+  meldId: string;
+  additions: SequenceMeldCard[]; // cards leaving hand
+  jokerMoves?: JokerMove[]; // repositioning already-committed joker(s)
+};
+
+export function addToSequence(match: Match, input: AddToSequenceInput): MoveResult {
+  if (match.phase !== 'playing') return { ok: false, reason: 'Match is over' };
+  if (match.turnPhase !== 'may-meld') return { ok: false, reason: 'Must draw before melding' };
+
+  const player = currentPlayer(match);
+  // A player may add to their own team's melds only.
+  const teamId = player.teamId;
+  const team = match.teams[teamId];
+  const meld = team.sequenceBox.find((m) => m.id === input.meldId);
+  if (!meld) return { ok: false, reason: 'Meld not found in your team box' };
+  if (meld.kind !== 'sequence') return { ok: false, reason: 'Target is not a sequence' };
+
+  // Remove additions from hand.
+  const cardIds = input.additions.map((a) => a.card.id);
+  const newHand = removeFromHand(player.hand, cardIds);
+  if (newHand === null) return { ok: false, reason: 'Additions include cards not in your hand' };
+
+  // Build the updated sequence: existing cards (with joker repositioning) + additions.
+  const jokerMap = new Map<string, SeqPos>();
+  (input.jokerMoves ?? []).forEach((jm) => jokerMap.set(jm.cardId, jm.newActingAs));
+
+  const existingUpdated: SequenceMeldCard[] = meld.cards.map((c) => {
+    const move = jokerMap.get(c.card.id);
+    if (move === undefined) return c;
+    if (!c.isJoker) {
+      // Non-joker cards cannot be repositioned.
+      return { ...c, actingAs: move };
+    }
+    return { ...c, actingAs: move };
+  });
+
+  // Ensure jokerMoves only referenced joker cards.
+  for (const jm of input.jokerMoves ?? []) {
+    const original = meld.cards.find((c) => c.card.id === jm.cardId);
+    if (!original) return { ok: false, reason: 'jokerMove targets a card not in this meld' };
+    if (!original.isJoker) return { ok: false, reason: 'jokerMove targets a non-joker card' };
+  }
+
+  const combined = [...existingUpdated, ...input.additions];
+  const v = validateSequence(combined);
+  if (!v.ok) return { ok: false, reason: v.reason };
+
+  // Invariant: team box must still have at least one pure sequence.
+  const updatedMeld: SequenceMeld = { ...v.meld, id: meld.id }; // preserve id
+  const newBox = team.sequenceBox.map((m) => (m.id === meld.id ? updatedMeld : m));
+  if (!boxHasPureSequence(newBox)) {
+    return { ok: false, reason: 'Team must always keep at least one pure sequence in the box' };
+  }
+
+  return {
+    ok: true,
+    match: {
+      ...match,
+      players: {
+        ...match.players,
+        [player.id]: { ...player, hand: newHand },
+      },
+      teams: { ...match.teams, [teamId]: { ...team, sequenceBox: newBox } },
+    },
+  };
+}
+
+// ---- Move: add cards to an existing triplet ---------------------------
+
+export type AddToTripletInput = {
+  meldId: string;
+  additions: TripletMeldCard[];
+};
+
+export function addToTriplet(match: Match, input: AddToTripletInput): MoveResult {
+  if (match.phase !== 'playing') return { ok: false, reason: 'Match is over' };
+  if (match.turnPhase !== 'may-meld') return { ok: false, reason: 'Must draw before melding' };
+
+  const player = currentPlayer(match);
+  const team = match.teams[player.teamId];
+  const meld = team.sequenceBox.find((m) => m.id === input.meldId);
+  if (!meld) return { ok: false, reason: 'Meld not found in your team box' };
+  if (meld.kind !== 'triplet') return { ok: false, reason: 'Target is not a triplet' };
+
+  const cardIds = input.additions.map((a) => a.card.id);
+  const newHand = removeFromHand(player.hand, cardIds);
+  if (newHand === null) return { ok: false, reason: 'Additions include cards not in your hand' };
+
+  const combined = [...meld.cards, ...input.additions];
+  const v = validateTriplet(combined);
+  if (!v.ok) return { ok: false, reason: v.reason };
+
+  const updatedMeld: TripletMeld = { ...v.meld, id: meld.id };
+  const newBox = team.sequenceBox.map((m) => (m.id === meld.id ? updatedMeld : m));
+  if (!boxHasPureSequence(newBox)) {
+    return { ok: false, reason: 'Team must always keep at least one pure sequence in the box' };
+  }
+
+  return {
+    ok: true,
+    match: {
+      ...match,
+      players: {
+        ...match.players,
+        [player.id]: { ...player, hand: newHand },
+      },
+      teams: { ...match.teams, [player.teamId]: { ...team, sequenceBox: newBox } },
+    },
+  };
+}
+
+// ---- Move: move a joker within its current sequence -------------------
+
+export function moveJoker(
+  match: Match,
+  meldId: string,
+  jokerCardId: string,
+  newActingAs: SeqPos,
+): MoveResult {
+  // A joker-only movement is a special case of addToSequence with no additions.
+  return addToSequence(match, {
+    meldId,
+    additions: [],
+    jokerMoves: [{ cardId: jokerCardId, newActingAs }],
+  });
+}
+
+// ---- Move: discard to end turn ----------------------------------------
+
+// After discard we may need to handle:
+//   • hand hits 0 with bhukara not yet taken → award +50, hand becomes bhukara,
+//     same player continues (turnPhase reset to may-meld — they must eventually discard again)
+//   • hand hits 0 with bhukara already taken → close the match, +50, phase='ended-normal'
+//   • otherwise → advance turn to next player
+//
+// Also enforces the team's first-drop rules that we couldn't verify at drop time
+// (single-player rule, 100+ sum for 1000+ teams).
+
+export function discard(match: Match, cardId: string): MoveResult {
+  if (match.phase !== 'playing') return { ok: false, reason: 'Match is over' };
+  if (match.turnPhase !== 'may-meld') return { ok: false, reason: 'Not ready to discard' };
+
+  const player = currentPlayer(match);
+  const team = currentTeam(match);
+  const card = player.hand.find((c) => c.id === cardId);
+  if (!card) return { ok: false, reason: 'That card is not in your hand' };
+
+  // First-drop-this-turn validation
+  const firstDropThisTurn =
+    !team.firstDropDone && match.meldsCreatedThisTurn.length > 0;
+  if (firstDropThisTurn) {
+    const meldsThisTurn = team.sequenceBox.filter((m) =>
+      match.meldsCreatedThisTurn.includes(m.id),
+    );
+    // Must include at least one pure sequence (base rule)
+    if (!meldsThisTurn.some((m) => isPureSequence(m))) {
+      return { ok: false, reason: "First drop must include a pure sequence — pick it up or add one" };
+    }
+    // 1000+ rule: sum of card values across all melds dropped this turn ≥ 100
+    if (team.mustFirstDropReach100) {
+      const total = meldsThisTurn.reduce((s, m) => s + meldCardTotal(m), 0);
+      if (total < 100) {
+        return { ok: false, reason: `Team is past 1000 — first drop must total ≥100 (currently ${total})` };
+      }
+    }
+  }
+
+  // Rule: cannot discard the last card if you dropped everything else — you must
+  // have at least one card to throw at the end of your turn. Since we're about
+  // to remove `card` from hand, that already leaves 0 or more; check the pre-state.
+  // (If hand length is 1 and we're discarding, hand becomes 0 — that's how bhukara
+  // pickup/closing is triggered, which is legal.)
+
+  // Perform the discard.
+  const newHand = player.hand.filter((c) => c.id !== cardId);
+  const newDiscard = [...match.discard, card];
+
+  // Commit team first-drop if we validated one this turn.
+  const teamAfterCommit = firstDropThisTurn
+    ? { ...team, firstDropDone: true, firstDropByPlayer: player.id }
+    : team;
+
+  let next: Match = {
+    ...match,
+    discard: newDiscard,
+    players: {
+      ...match.players,
+      [player.id]: { ...player, hand: newHand },
+    },
+    teams: { ...match.teams, [team.id]: teamAfterCommit },
+    meldsCreatedThisTurn: [],
+  };
+
+  // Hand hits 0 — check bhukara / closing.
+  if (newHand.length === 0) {
+    if (next.bhukaraTakenBy === null) {
+      // Award bhukara: current player takes the 13-card pile.
+      next = {
+        ...next,
+        bhukara: [],
+        bhukaraTakenBy: player.id,
+        players: {
+          ...next.players,
+          [player.id]: { ...next.players[player.id], hand: next.bhukara },
+        },
+        turnPhase: 'may-meld', // same player continues; must discard again eventually
+      };
+      return { ok: true, match: next };
+    } else {
+      // Match closes.
+      next = {
+        ...next,
+        phase: 'ended-normal',
+        closedBy: player.id,
+      };
+      return { ok: true, match: next };
+    }
+  }
+
+  // Stock/pile bookkeeping — if stock exhausts and nobody has picked bhukara,
+  // we DO NOT void here (spec says match ends only when the next player CAN'T
+  // draw). Check at the next player's draw phase. For simplicity, if stock is
+  // empty AND bhukara has not been taken, next player will hit the void path.
+  return { ok: true, match: advanceTurn(next) };
+}
+
+// Called by the UI at the start of a player's turn (or before drawStock) to
+// detect a forced void. Match ends with no scoring when nobody can draw.
+export function checkVoidCondition(match: Match): Match {
+  if (match.phase !== 'playing') return match;
+  if (match.turnPhase !== 'awaiting-draw') return match;
+  if (match.stock.length === 0 && match.discard.length === 0 && match.bhukaraTakenBy !== null) {
+    // Bhukara has already been taken and both piles empty — void.
+    return { ...match, phase: 'ended-void' };
+  }
+  if (match.stock.length === 0 && match.discard.length === 0 && match.bhukaraTakenBy === null) {
+    // Nothing to draw and bhukara still sitting there — extremely edge, treat as void.
+    return { ...match, phase: 'ended-void' };
+  }
+  return match;
+}

@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bhukara — Editorial · Light & Dark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --swatch-size: 42px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #ececec;
+      color: #222;
+    }
+
+    .page-header {
+      background: #0b0b0b;
+      color: #fff;
+      padding: 22px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .page-header h1 { margin: 0; font-size: 18px; letter-spacing: 4px; font-weight: 600; }
+    .page-header .subtitle { color: rgba(255,255,255,0.6); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+    .direction { padding: 56px 40px; background: #f7f6f2; }
+    .direction + .direction { border-top: 1px solid #ddd; }
+    .dir-header {
+      margin: 0 0 8px;
+      font-size: 12px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #666;
+      font-weight: 600;
+    }
+    .dir-title {
+      margin: 0 0 8px;
+      font-size: 34px;
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+    }
+    .dir-desc { margin: 0 0 32px; font-size: 15px; color: #555; max-width: 640px; line-height: 1.55; }
+
+    .mock {
+      border-radius: 20px;
+      padding: 40px;
+      min-height: 640px;
+      overflow: hidden;
+      position: relative;
+      isolation: isolate;
+    }
+
+    /* -----------------------------------------------------------
+       Mountain landscape backdrop.
+       Real photo used via /mountain-landscape.jpg — see instructions
+       at the bottom of the file. SVG fallback still renders if the
+       image is missing.
+       ----------------------------------------------------------- */
+    .landscape-bg {
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+    }
+    .landscape-bg svg,
+    .landscape-bg img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+    .landscape-bg img {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+    }
+
+    .swatches {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      margin-top: 28px;
+    }
+    .swatch {
+      width: var(--swatch-size);
+      height: var(--swatch-size);
+      border-radius: 8px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      padding-bottom: 4px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .swatch.dark-fg { color: rgba(255,255,255,0.75); }
+    .type-stack {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+
+    /* -----------------------------------------------------------
+       Editorial mock (used by both light and dark variants).
+       Each glass panel is: translucent tint + backdrop-filter
+       + hairline top-highlight border.
+       ----------------------------------------------------------- */
+    .editorial .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      margin-bottom: 32px;
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border-radius: 16px;
+    }
+    .editorial .brand {
+      font-family: 'Fraunces', serif;
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      font-style: italic;
+    }
+    .editorial .scores {
+      display: flex;
+      gap: 20px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .editorial .scores span {
+      font-family: 'Fraunces', serif;
+      font-size: 24px;
+      margin-left: 6px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .editorial .headline-row {
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-radius: 14px;
+      padding: 22px 24px;
+      margin-bottom: 28px;
+    }
+    .editorial h2 {
+      font-family: 'Fraunces', serif;
+      font-size: 28px;
+      font-weight: 500;
+      margin: 0 0 4px;
+    }
+    .editorial .meta {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 0;
+      font-weight: 600;
+    }
+    .editorial .btn-row { display: flex; gap: 10px; margin-top: 26px; }
+    .editorial button {
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 600;
+      padding: 13px 24px;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .editorial .card-row { display: flex; gap: 10px; margin-top: 24px; }
+
+    /* -----------------------------------------------------------
+       Art-deco illustrated card face — inspired by the reference
+       (peach + teal + coral + cream, halftone).
+       ----------------------------------------------------------- */
+    .deco-card {
+      width: 84px; height: 118px;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.55),
+        0 6px 20px rgba(0,0,0,0.22);
+      background: var(--card-face);
+      color: var(--card-black);
+      font-family: 'Fraunces', serif;
+    }
+    .deco-card.red { color: var(--card-red); }
+    /* halftone dot overlay */
+    .deco-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle at center, var(--card-halftone) 0.6px, transparent 0.8px);
+      background-size: 4px 4px;
+      opacity: 0.7;
+      pointer-events: none;
+    }
+    .deco-card .rank {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+    .deco-card .rank-br {
+      position: absolute;
+      bottom: 6px;
+      right: 8px;
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -1px;
+      transform: rotate(180deg);
+    }
+    .deco-card .suit {
+      position: absolute;
+      top: 30px;
+      left: 12px;
+      font-size: 14px;
+    }
+    .deco-card .suit-br {
+      position: absolute;
+      bottom: 30px;
+      right: 12px;
+      font-size: 14px;
+      transform: rotate(180deg);
+    }
+    .deco-card .art {
+      position: absolute;
+      inset: 32px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+    .deco-card .art svg { width: 100%; height: 100%; }
+
+    /* Face-down card: plain solid deep teal, no ornament. */
+    .deco-card.back {
+      background: var(--card-back);
+    }
+    .deco-card.back::before { display: none; }
+    .deco-card.back::after { display: none; }
+    .deco-card.back .back-emblem { display: none; }
+
+    /* =========== LIGHT variant palette =========== */
+    .editorial-light {
+      color: #1C1E22;
+      --card-face: #F4EDDD;
+      --card-black: #1C1E22;
+      --card-red: #E36A4C;
+      --card-halftone: rgba(28, 30, 34, 0.35);
+      --card-back: #4A6E7F;
+      --accent: #E36A4C;
+      --accent-alt: #4A6E7F;
+    }
+    .editorial-light .topbar {
+      background: rgba(244, 237, 221, 0.42);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 8px 32px rgba(28, 30, 34, 0.15);
+    }
+    .editorial-light .brand { color: #1C1E22; }
+    .editorial-light .brand em { font-style: italic; color: #E36A4C; }
+    .editorial-light .scores { color: rgba(28, 30, 34, 0.62); }
+    .editorial-light .scores span { color: #E36A4C; }
+    .editorial-light .headline-row {
+      background: rgba(244, 237, 221, 0.38);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 6px 26px rgba(28, 30, 34, 0.12);
+    }
+    .editorial-light .meta { color: #4A6E7F; }
+    .editorial-light button {
+      background: rgba(244, 237, 221, 0.5);
+      color: #1C1E22;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+    .editorial-light button.primary {
+      background: rgba(227, 106, 76, 0.9);
+      color: #F4EDDD;
+      border-color: rgba(255, 255, 255, 0.35);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 6px 24px rgba(227, 106, 76, 0.35);
+    }
+
+    /* =========== DARK variant palette =========== */
+    .editorial-dark {
+      color: #F4EDDD;
+      --card-face: #F4EDDD;
+      --card-black: #1C1E22;
+      --card-red: #E36A4C;
+      --card-halftone: rgba(28, 30, 34, 0.35);
+      --card-back: #2E4A5E;
+      --accent: #E36A4C;
+      --accent-alt: #7BA6B8;
+    }
+    .editorial-dark .topbar {
+      background: rgba(20, 26, 38, 0.55);
+      border: 1px solid rgba(244, 237, 221, 0.15);
+      box-shadow: inset 0 1px 0 rgba(244, 237, 221, 0.18), 0 12px 40px rgba(0, 0, 0, 0.5);
+    }
+    .editorial-dark .brand { color: #F4EDDD; }
+    .editorial-dark .brand em { font-style: italic; color: #E36A4C; }
+    .editorial-dark .scores { color: rgba(244, 237, 221, 0.7); }
+    .editorial-dark .scores span { color: #E36A4C; }
+    .editorial-dark .headline-row {
+      background: rgba(20, 26, 38, 0.45);
+      border: 1px solid rgba(244, 237, 221, 0.12);
+      box-shadow: inset 0 1px 0 rgba(244, 237, 221, 0.15), 0 10px 32px rgba(0, 0, 0, 0.4);
+    }
+    .editorial-dark .meta { color: #7BA6B8; }
+    .editorial-dark button {
+      background: rgba(244, 237, 221, 0.08);
+      color: #F4EDDD;
+      border: 1px solid rgba(244, 237, 221, 0.2);
+      box-shadow: inset 0 1px 0 rgba(244, 237, 221, 0.15);
+    }
+    .editorial-dark button.primary {
+      background: rgba(227, 106, 76, 0.9);
+      color: #1C1E22;
+      border-color: rgba(255, 255, 255, 0.25);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 8px 28px rgba(227, 106, 76, 0.4);
+    }
+
+    .glass-note {
+      position: absolute;
+      top: 16px; right: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255, 255, 255, 0.14);
+      color: rgba(255, 255, 255, 0.9);
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    .pick-note {
+      background: #0b0b0b;
+      color: #fff;
+      padding: 40px;
+      text-align: center;
+    }
+    .pick-note p { max-width: 640px; margin: 0 auto; line-height: 1.7; color: rgba(255,255,255,0.7); }
+    .pick-note code { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>BHUKARA — EDITORIAL</h1>
+  <span class="subtitle">Light &amp; Dark · Deco Illustrated Cards</span>
+</header>
+
+<!-- =============================================================
+     Editorial — LIGHT
+     ============================================================= -->
+<section class="direction">
+  <div class="dir-header">Direction A · Light</div>
+  <h2 class="dir-title">Editorial — Daylight</h2>
+  <p class="dir-desc">Sunset mountain landscape as backdrop. Warm bone-and-peach palette. Cards illustrated in a mid-century art-deco style — cream face, halftone dots, peach and teal accents. UI panels are subtle liquid glass over the landscape.</p>
+
+  <div class="mock editorial editorial-light">
+    <span class="glass-note" style="color: #1C1E22; background: rgba(255,255,255,0.5); border-color: rgba(255,255,255,0.7);">liquid glass · light</span>
+
+    <div class="landscape-bg">
+      <img src="/mountain-light.jpg" alt="" onerror="this.style.display='none'"/>
+      <svg viewBox="0 0 800 640" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="sky-light" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#F5DDB9"/>
+            <stop offset="35%" stop-color="#F1BE95"/>
+            <stop offset="70%" stop-color="#D8967A"/>
+            <stop offset="100%" stop-color="#8B7089"/>
+          </linearGradient>
+        </defs>
+        <rect width="800" height="640" fill="url(#sky-light)"/>
+        <!-- distant peaks -->
+        <path d="M0,400 L60,340 L120,375 L180,300 L250,360 L320,290 L390,340 L460,270 L540,320 L620,285 L700,335 L800,300 L800,640 L0,640 Z" fill="#7BA6B8" opacity="0.75"/>
+        <!-- mid ridges -->
+        <path d="M0,450 L80,395 L160,440 L240,370 L330,435 L410,380 L500,435 L580,395 L680,450 L800,420 L800,640 L0,640 Z" fill="#4A6E7F" opacity="0.88"/>
+        <!-- near mountains -->
+        <path d="M0,510 L90,435 L200,500 L300,410 L410,490 L510,425 L620,505 L720,435 L800,505 L800,640 L0,640 Z" fill="#2E4A5E"/>
+        <!-- foreground -->
+        <path d="M0,570 L120,510 L240,565 L360,495 L480,565 L600,510 L720,570 L800,540 L800,640 L0,640 Z" fill="#1A2E3C"/>
+        <!-- foreground trees left -->
+        <g fill="#0F1F2A">
+          <polygon points="30,555 45,470 60,555"/>
+          <polygon points="60,585 78,490 96,585"/>
+          <polygon points="95,570 108,510 121,570"/>
+        </g>
+        <!-- foreground trees right -->
+        <g fill="#0F1F2A">
+          <polygon points="710,560 725,485 740,560"/>
+          <polygon points="740,585 758,505 776,585"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="topbar">
+      <div class="brand">B<em>h</em>ukara</div>
+      <div class="scores">Team&nbsp;A<span>2140</span> · Team&nbsp;B<span>1875</span></div>
+    </div>
+
+    <div class="headline-row">
+      <h2>Shloka's turn</h2>
+      <div class="meta">Match 4 · Turn 12 · may-meld</div>
+    </div>
+
+    <div class="card-row">
+      <!-- A of Spades -->
+      <div class="deco-card">
+        <div class="rank">A</div>
+        <div class="suit">♠</div>
+        <div class="rank-br">A</div>
+        <div class="suit-br">♠</div>
+        <div class="art">
+          <svg viewBox="0 0 60 76">
+            <!-- ornamental spade with tiny mountain scene inside -->
+            <path d="M30,10 C42,20 50,32 50,44 C50,54 44,60 36,60 L34,60 L34,68 L26,68 L26,60 L24,60 C16,60 10,54 10,44 C10,32 18,20 30,10 Z" fill="#2E4A5E"/>
+            <path d="M18,44 L28,32 L36,42 L42,36 L44,50 L16,50 Z" fill="#E36A4C"/>
+            <circle cx="42" cy="20" r="4" fill="#F4EDDD"/>
+          </svg>
+        </div>
+      </div>
+      <!-- K of Diamonds -->
+      <div class="deco-card red">
+        <div class="rank">K</div>
+        <div class="suit">♦</div>
+        <div class="rank-br">K</div>
+        <div class="suit-br">♦</div>
+        <div class="art">
+          <svg viewBox="0 0 60 76">
+            <rect x="12" y="12" width="36" height="52" fill="#2E4A5E"/>
+            <rect x="18" y="24" width="24" height="30" fill="#E36A4C"/>
+            <circle cx="30" cy="38" r="6" fill="#F4EDDD"/>
+            <polygon points="12,12 30,4 48,12" fill="#E36A4C"/>
+          </svg>
+        </div>
+      </div>
+      <!-- 7 of Hearts -->
+      <div class="deco-card red">
+        <div class="rank">7</div>
+        <div class="suit">♥</div>
+        <div class="rank-br">7</div>
+        <div class="suit-br">♥</div>
+        <div class="art">
+          <svg viewBox="0 0 60 76">
+            <g fill="#E36A4C">
+              <path d="M15,20 C15,14 20,10 25,14 C28,10 33,14 33,20 C33,26 24,32 24,32 C24,32 15,26 15,20 Z"/>
+              <path d="M40,42 C40,36 45,32 50,36 C53,32 58,36 58,42 C58,48 49,54 49,54 C49,54 40,48 40,42 Z" transform="translate(-15, -10)"/>
+              <path d="M15,60 C15,54 20,50 25,54 C28,50 33,54 33,60 C33,66 24,72 24,72 C24,72 15,66 15,60 Z"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="deco-card back">
+        <div class="back-emblem">
+          <svg viewBox="0 0 60 76" width="60" height="76">
+            <defs>
+              <clipPath id="back-clip"><rect x="4" y="4" width="52" height="68" rx="3"/></clipPath>
+            </defs>
+            <g clip-path="url(#back-clip)">
+              <!-- sunset sky -->
+              <rect x="4" y="4" width="52" height="68" fill="#F1BE95"/>
+              <!-- sun disk -->
+              <circle cx="30" cy="30" r="7" fill="#E36A4C"/>
+              <!-- distant peaks -->
+              <path d="M4,40 L12,32 L20,38 L30,28 L40,36 L50,30 L56,36 L56,72 L4,72 Z" fill="#7BA6B8"/>
+              <!-- mid ridges -->
+              <path d="M4,50 L14,42 L26,50 L36,44 L46,50 L56,46 L56,72 L4,72 Z" fill="#4A6E7F"/>
+              <!-- near mountains -->
+              <path d="M4,60 L16,52 L28,60 L40,50 L52,60 L56,58 L56,72 L4,72 Z" fill="#2E4A5E"/>
+              <!-- tree silhouettes -->
+              <polygon points="10,64 14,54 18,64" fill="#1C1E22"/>
+              <polygon points="46,66 50,56 54,66" fill="#1C1E22"/>
+            </g>
+            <!-- decorative inner border -->
+            <rect x="4" y="4" width="52" height="68" rx="3" fill="none" stroke="#F4EDDD" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+      <div class="deco-card back">
+        <div class="back-emblem">
+          <svg viewBox="0 0 60 76" width="60" height="76">
+            <defs>
+              <clipPath id="back-clip"><rect x="4" y="4" width="52" height="68" rx="3"/></clipPath>
+            </defs>
+            <g clip-path="url(#back-clip)">
+              <!-- sunset sky -->
+              <rect x="4" y="4" width="52" height="68" fill="#F1BE95"/>
+              <!-- sun disk -->
+              <circle cx="30" cy="30" r="7" fill="#E36A4C"/>
+              <!-- distant peaks -->
+              <path d="M4,40 L12,32 L20,38 L30,28 L40,36 L50,30 L56,36 L56,72 L4,72 Z" fill="#7BA6B8"/>
+              <!-- mid ridges -->
+              <path d="M4,50 L14,42 L26,50 L36,44 L46,50 L56,46 L56,72 L4,72 Z" fill="#4A6E7F"/>
+              <!-- near mountains -->
+              <path d="M4,60 L16,52 L28,60 L40,50 L52,60 L56,58 L56,72 L4,72 Z" fill="#2E4A5E"/>
+              <!-- tree silhouettes -->
+              <polygon points="10,64 14,54 18,64" fill="#1C1E22"/>
+              <polygon points="46,66 50,56 54,66" fill="#1C1E22"/>
+            </g>
+            <!-- decorative inner border -->
+            <rect x="4" y="4" width="52" height="68" rx="3" fill="none" stroke="#F4EDDD" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="primary">Draw</button>
+      <button>Discard</button>
+      <button>Meld</button>
+    </div>
+
+    <div class="swatches">
+      <div class="swatch" style="background: #F4EDDD; color: rgba(0,0,0,0.65);">cream</div>
+      <div class="swatch dark-fg" style="background: #E36A4C;">peach</div>
+      <div class="swatch dark-fg" style="background: #4A6E7F;">teal</div>
+      <div class="swatch dark-fg" style="background: #2E4A5E;">deep&nbsp;teal</div>
+      <div class="swatch dark-fg" style="background: #1C1E22;">ink</div>
+    </div>
+    <div class="type-stack" style="color: rgba(28,30,34,0.7);">Type: <b>Fraunces</b> (brand, cards, headlines) + <b>Inter</b> (UI)</div>
+  </div>
+</section>
+
+<!-- =============================================================
+     Editorial — DARK
+     ============================================================= -->
+<section class="direction" style="background: #eaeaea;">
+  <div class="dir-header">Direction A · Dark</div>
+  <h2 class="dir-title">Editorial — Twilight</h2>
+  <p class="dir-desc">Same design language after sunset. Deep-blue mountain silhouettes with a peach afterglow at the horizon. Same illustrated cards — cream face, peach + teal — now floating over cool navy glass panels.</p>
+
+  <div class="mock editorial editorial-dark">
+    <span class="glass-note">liquid glass · dark</span>
+
+    <div class="landscape-bg">
+      <img src="/mountain-dark.png" alt="" onerror="this.style.display='none'"/>
+      <svg viewBox="0 0 800 640" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="sky-dark" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0A0F1F"/>
+            <stop offset="40%" stop-color="#1A2140"/>
+            <stop offset="72%" stop-color="#5C3352"/>
+            <stop offset="92%" stop-color="#D8703C"/>
+            <stop offset="100%" stop-color="#2A1E30"/>
+          </linearGradient>
+        </defs>
+        <rect width="800" height="640" fill="url(#sky-dark)"/>
+        <!-- stars -->
+        <g fill="#F4EDDD" opacity="0.7">
+          <circle cx="80" cy="60" r="0.9"/>
+          <circle cx="200" cy="90" r="1.1"/>
+          <circle cx="320" cy="45" r="0.8"/>
+          <circle cx="440" cy="110" r="1"/>
+          <circle cx="560" cy="70" r="0.9"/>
+          <circle cx="680" cy="30" r="1.1"/>
+          <circle cx="150" cy="150" r="0.7"/>
+          <circle cx="380" cy="170" r="0.9"/>
+          <circle cx="620" cy="140" r="0.8"/>
+          <circle cx="740" cy="180" r="1"/>
+        </g>
+        <!-- distant peaks -->
+        <path d="M0,400 L60,340 L120,375 L180,300 L250,360 L320,290 L390,340 L460,270 L540,320 L620,285 L700,335 L800,300 L800,640 L0,640 Z" fill="#243347" opacity="0.85"/>
+        <!-- mid ridges -->
+        <path d="M0,450 L80,395 L160,440 L240,370 L330,435 L410,380 L500,435 L580,395 L680,450 L800,420 L800,640 L0,640 Z" fill="#141F35" opacity="0.9"/>
+        <!-- near mountains -->
+        <path d="M0,510 L90,435 L200,500 L300,410 L410,490 L510,425 L620,505 L720,435 L800,505 L800,640 L0,640 Z" fill="#0B1425"/>
+        <!-- foreground -->
+        <path d="M0,570 L120,510 L240,565 L360,495 L480,565 L600,510 L720,570 L800,540 L800,640 L0,640 Z" fill="#050912"/>
+        <!-- trees -->
+        <g fill="#020509">
+          <polygon points="30,555 45,470 60,555"/>
+          <polygon points="60,585 78,490 96,585"/>
+          <polygon points="95,570 108,510 121,570"/>
+          <polygon points="710,560 725,485 740,560"/>
+          <polygon points="740,585 758,505 776,585"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="topbar">
+      <div class="brand">B<em>h</em>ukara</div>
+      <div class="scores">Team&nbsp;A<span>2140</span> · Team&nbsp;B<span>1875</span></div>
+    </div>
+
+    <div class="headline-row">
+      <h2>Shloka's turn</h2>
+      <div class="meta">Match 4 · Turn 12 · may-meld</div>
+    </div>
+
+    <div class="card-row">
+      <div class="deco-card">
+        <div class="rank">A</div>
+        <div class="suit">♠</div>
+        <div class="rank-br">A</div>
+        <div class="suit-br">♠</div>
+        <div class="art">
+          <svg viewBox="0 0 60 76">
+            <path d="M30,10 C42,20 50,32 50,44 C50,54 44,60 36,60 L34,60 L34,68 L26,68 L26,60 L24,60 C16,60 10,54 10,44 C10,32 18,20 30,10 Z" fill="#2E4A5E"/>
+            <path d="M18,44 L28,32 L36,42 L42,36 L44,50 L16,50 Z" fill="#E36A4C"/>
+            <circle cx="42" cy="20" r="4" fill="#F4EDDD"/>
+          </svg>
+        </div>
+      </div>
+      <div class="deco-card red">
+        <div class="rank">K</div>
+        <div class="suit">♦</div>
+        <div class="rank-br">K</div>
+        <div class="suit-br">♦</div>
+        <div class="art">
+          <svg viewBox="0 0 60 76">
+            <rect x="12" y="12" width="36" height="52" fill="#2E4A5E"/>
+            <rect x="18" y="24" width="24" height="30" fill="#E36A4C"/>
+            <circle cx="30" cy="38" r="6" fill="#F4EDDD"/>
+            <polygon points="12,12 30,4 48,12" fill="#E36A4C"/>
+          </svg>
+        </div>
+      </div>
+      <div class="deco-card red">
+        <div class="rank">7</div>
+        <div class="suit">♥</div>
+        <div class="rank-br">7</div>
+        <div class="suit-br">♥</div>
+        <div class="art">
+          <svg viewBox="0 0 60 76">
+            <g fill="#E36A4C">
+              <path d="M15,20 C15,14 20,10 25,14 C28,10 33,14 33,20 C33,26 24,32 24,32 C24,32 15,26 15,20 Z"/>
+              <path d="M40,42 C40,36 45,32 50,36 C53,32 58,36 58,42 C58,48 49,54 49,54 C49,54 40,48 40,42 Z" transform="translate(-15, -10)"/>
+              <path d="M15,60 C15,54 20,50 25,54 C28,50 33,54 33,60 C33,66 24,72 24,72 C24,72 15,66 15,60 Z"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="deco-card back">
+        <div class="back-emblem">
+          <svg viewBox="0 0 60 76" width="60" height="76">
+            <defs>
+              <clipPath id="back-clip"><rect x="4" y="4" width="52" height="68" rx="3"/></clipPath>
+            </defs>
+            <g clip-path="url(#back-clip)">
+              <!-- sunset sky -->
+              <rect x="4" y="4" width="52" height="68" fill="#F1BE95"/>
+              <!-- sun disk -->
+              <circle cx="30" cy="30" r="7" fill="#E36A4C"/>
+              <!-- distant peaks -->
+              <path d="M4,40 L12,32 L20,38 L30,28 L40,36 L50,30 L56,36 L56,72 L4,72 Z" fill="#7BA6B8"/>
+              <!-- mid ridges -->
+              <path d="M4,50 L14,42 L26,50 L36,44 L46,50 L56,46 L56,72 L4,72 Z" fill="#4A6E7F"/>
+              <!-- near mountains -->
+              <path d="M4,60 L16,52 L28,60 L40,50 L52,60 L56,58 L56,72 L4,72 Z" fill="#2E4A5E"/>
+              <!-- tree silhouettes -->
+              <polygon points="10,64 14,54 18,64" fill="#1C1E22"/>
+              <polygon points="46,66 50,56 54,66" fill="#1C1E22"/>
+            </g>
+            <!-- decorative inner border -->
+            <rect x="4" y="4" width="52" height="68" rx="3" fill="none" stroke="#F4EDDD" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+      <div class="deco-card back">
+        <div class="back-emblem">
+          <svg viewBox="0 0 60 76" width="60" height="76">
+            <defs>
+              <clipPath id="back-clip"><rect x="4" y="4" width="52" height="68" rx="3"/></clipPath>
+            </defs>
+            <g clip-path="url(#back-clip)">
+              <!-- sunset sky -->
+              <rect x="4" y="4" width="52" height="68" fill="#F1BE95"/>
+              <!-- sun disk -->
+              <circle cx="30" cy="30" r="7" fill="#E36A4C"/>
+              <!-- distant peaks -->
+              <path d="M4,40 L12,32 L20,38 L30,28 L40,36 L50,30 L56,36 L56,72 L4,72 Z" fill="#7BA6B8"/>
+              <!-- mid ridges -->
+              <path d="M4,50 L14,42 L26,50 L36,44 L46,50 L56,46 L56,72 L4,72 Z" fill="#4A6E7F"/>
+              <!-- near mountains -->
+              <path d="M4,60 L16,52 L28,60 L40,50 L52,60 L56,58 L56,72 L4,72 Z" fill="#2E4A5E"/>
+              <!-- tree silhouettes -->
+              <polygon points="10,64 14,54 18,64" fill="#1C1E22"/>
+              <polygon points="46,66 50,56 54,66" fill="#1C1E22"/>
+            </g>
+            <!-- decorative inner border -->
+            <rect x="4" y="4" width="52" height="68" rx="3" fill="none" stroke="#F4EDDD" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="primary">Draw</button>
+      <button>Discard</button>
+      <button>Meld</button>
+    </div>
+
+    <div class="swatches">
+      <div class="swatch" style="background: #F4EDDD; color: rgba(0,0,0,0.65);">cream</div>
+      <div class="swatch dark-fg" style="background: #E36A4C;">peach</div>
+      <div class="swatch dark-fg" style="background: #7BA6B8;">sky&nbsp;teal</div>
+      <div class="swatch dark-fg" style="background: #0B1425;">night</div>
+      <div class="swatch dark-fg" style="background: #1C1E22;">ink</div>
+    </div>
+    <div class="type-stack" style="color: rgba(244,237,221,0.62);">Type: <b>Fraunces</b> (brand, cards, headlines) + <b>Inter</b> (UI)</div>
+  </div>
+</section>
+
+<div class="pick-note">
+  <p>Both mountain images are wired: <code>/mountain-light.jpg</code> for daylight, <code>/mountain-dark.png</code> for twilight. Card backs are plain solid teal. The illustrated card faces are simplified stand-ins — in the real app I'll use the same halftone / peach-teal-cream language with proper composed art per face card. Reply <code>light</code>, <code>dark</code>, or <code>both</code> (I'll wire a toggle) once the preview matches.</p>
+</div>
+
+</body>
+</html>
