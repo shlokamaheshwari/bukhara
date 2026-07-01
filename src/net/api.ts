@@ -2,7 +2,17 @@
 // Host is set via VITE_PARTY_HOST env var; falls back to localhost for dev.
 
 const PARTY_HOST = (import.meta.env.VITE_PARTY_HOST as string | undefined) ?? 'localhost:1999';
-const AUTH_URL = `${PARTY_HOST.startsWith('http') ? PARTY_HOST : `http://${PARTY_HOST}`}/parties/auth/main`;
+
+// If the host already includes a protocol, respect it. Otherwise pick http
+// for localhost (dev) and https for anything else (prod deploys are always
+// on HTTPS — mixed content would be blocked by the browser).
+function resolveOrigin(host: string): string {
+  if (host.startsWith('http://') || host.startsWith('https://')) return host;
+  const isLocal = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+  return `${isLocal ? 'http' : 'https'}://${host}`;
+}
+
+const AUTH_URL = `${resolveOrigin(PARTY_HOST)}/parties/auth/main`;
 
 export type AuthOk = { token: string; username: string; displayName: string };
 export type AuthErr = { error: string };
