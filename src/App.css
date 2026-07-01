@@ -366,8 +366,18 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   padding: 14px;
   min-height: 130px;
 }
-.team-box-a { border-top: 2px solid var(--team-a); }
-.team-box-b { border-top: 2px solid var(--team-b); }
+.team-box-a {
+  border: 1px solid var(--team-a);
+  box-shadow:
+    inset 0 1px 0 var(--panel-highlight),
+    0 0 0 2px rgba(74, 110, 127, 0.18);
+}
+.team-box-b {
+  border: 1px solid var(--team-b);
+  box-shadow:
+    inset 0 1px 0 var(--panel-highlight),
+    0 0 0 2px rgba(227, 106, 76, 0.18);
+}
 .team-box-header {
   display: flex; gap: 10px; align-items: center;
   font-family: 'Fraunces', serif;
@@ -404,8 +414,14 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   border-left: 3px solid transparent;
 }
 [data-theme="dark"] .meld-strip { background: rgba(244, 237, 221, 0.06); }
-.meld-strip.pure { border-left-color: var(--accent); }
-.meld-strip.impure { border-left-color: var(--teal-sky); }
+/* Meld strip indicator = pure vs impure sequence.
+   Distinct from team colors so ownership stays visually unambiguous. */
+.meld-strip.pure {
+  border-left-color: #6BAE7A; /* mint — pure sequence */
+}
+.meld-strip.impure {
+  border-left-color: #C9A961; /* amber — includes a joker */
+}
 .meld-strip-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
@@ -416,6 +432,17 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   font-variant-numeric: tabular-nums;
 }
 .meld-strip-label .bonus { color: var(--accent); font-weight: 700; }
+.meld-purity {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  vertical-align: 1px;
+}
+.meld-purity.pure   { color: #6BAE7A; background: rgba(107, 174, 122, 0.12); border: 1px solid rgba(107, 174, 122, 0.4); }
+.meld-purity.impure { color: #C9A961; background: rgba(201, 169, 97, 0.12); border: 1px solid rgba(201, 169, 97, 0.4); }
 .meld-strip-cards { display: flex; gap: 3px; flex-wrap: wrap; }
 
 .tiny, .ghost-btn {

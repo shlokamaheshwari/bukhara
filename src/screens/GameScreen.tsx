@@ -890,6 +890,9 @@ function TeamBox({
           <div className="meld-strip-label">
             {m.kind === 'sequence' ? `Seq ${suitGlyph(m.suit)}` : `Trip ${rankLabel(m.rank)}`} · {meldCardTotal(m)}pt
             {meldSizeBonus(m) > 0 && <span className="bonus"> +{meldSizeBonus(m)}</span>}
+            <span className={`meld-purity ${isPure(m) ? 'pure' : 'impure'}`}>
+              {isPure(m) ? 'PURE' : 'IMPURE'}
+            </span>
           </div>
           <div className="meld-strip-cards">
             {m.cards.map((mc) => (
