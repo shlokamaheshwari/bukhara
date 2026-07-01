@@ -341,6 +341,47 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   white-space: nowrap;
 }
 .discard-pile { min-width: 220px; }
+.discard-pile.clickable { cursor: pointer; transition: transform 0.15s; }
+.discard-pile.clickable:hover { transform: translateY(-2px); }
+.discard-modal { max-width: 720px; }
+.discard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 14px 10px;
+  padding: 12px 4px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+.discard-grid-card {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+.discard-grid-index {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+.discard-grid-newest {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  padding: 1px 6px;
+  background: var(--accent);
+  color: var(--cream);
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
 .discard-fan { display: flex; min-height: 62px; align-items: center; padding-left: 30px; }
 .discard-slot { flex-shrink: 0; }
 .empty-slot { width: 44px; height: 62px; border: 1px dashed var(--divider); border-radius: 8px; }

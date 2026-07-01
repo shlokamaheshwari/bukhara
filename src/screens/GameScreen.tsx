@@ -86,6 +86,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
     0: [[]], 1: [[]], 2: [[]], 3: [[]],
   });
   const [showSetup, setShowSetup] = useState(!isMP && !playerNames);
+  const [showDiscardPile, setShowDiscardPile] = useState(false);
 
   const match = game.currentMatch;
   // Whose "view" is at the bottom of the table:
@@ -252,7 +253,11 @@ export default function GameScreen(props: GameScreenProps = {}) {
               <div className="pile-label">Draw pile ({match.stock.length})</div>
               <StackedCards count={match.stock.length} />
             </div>
-            <div className="pile discard-pile">
+            <div
+              className={`pile discard-pile ${match.discard.length > 0 ? 'clickable' : ''}`}
+              onClick={() => match.discard.length > 0 && setShowDiscardPile(true)}
+              title={match.discard.length > 0 ? 'Click to see all discarded cards' : ''}
+            >
               <div className="pile-label">Discard pile ({match.discard.length})</div>
               <div className="discard-fan">
                 {match.discard.length === 0 && <div className="empty-slot" />}
@@ -354,6 +359,46 @@ export default function GameScreen(props: GameScreenProps = {}) {
           onStart={onSetupSubmit}
         />
       )}
+
+      {showDiscardPile && (
+        <DiscardPileModal
+          cards={match.discard}
+          onClose={() => setShowDiscardPile(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Shows every card in the discard pile, oldest first, most-recent last.
+// Purely informational — no interaction beyond dismiss.
+function DiscardPileModal({
+  cards,
+  onClose,
+}: {
+  cards: Card[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content discard-modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Discard pile · {cards.length} card{cards.length === 1 ? '' : 's'}</h2>
+        <p className="hint">
+          Oldest at the top-left, most-recent at the bottom-right. Picking the discard pile takes them all.
+        </p>
+        <div className="discard-grid">
+          {cards.map((c, i) => (
+            <div key={c.id} className="discard-grid-card">
+              <span className="discard-grid-index">#{i + 1}</span>
+              <CardFace card={c} size="md" />
+              {i === cards.length - 1 && <span className="discard-grid-newest">Top</span>}
+            </div>
+          ))}
+        </div>
+        <div className="modal-buttons">
+          <button className="primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
     </div>
   );
 }
