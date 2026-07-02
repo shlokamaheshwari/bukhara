@@ -21,21 +21,45 @@ export function meldSizeBonus(meld: Meld): number {
   return isPure(meld) ? 200 : 100;
 }
 
-// Full team score for a match given committed melds, bhukara pickup, closing,
-// and (subtracted) opponents' hand cards.
+// Full team score for a match. Cards in your team's melds count positive;
+// cards still held by your team's players at match end count negative.
+// The closing team's hands are empty (that's how they closed) — the losing
+// team eats the penalty for whatever they still held.
 export type MatchScoreInputs = {
   melds: Meld[];
   bhukaraPicked: boolean;
   closedMatch: boolean;
-  opponentHeldCardValues: number; // sum of card values still in opponents' hands
+  ownHeldCardValues: number; // sum of card values still in this team's hands
 };
 
-export function scoreMatchForTeam(inp: MatchScoreInputs): number {
+// Structured breakdown so a scoreboard can show *why* the score is what it is.
+export type MatchScoreBreakdown = {
+  meldCards: number;
+  sizeBonuses: number;
+  bhukaraBonus: number;
+  closingBonus: number;
+  heldPenalty: number; // subtracted
+  total: number;
+};
+
+export function scoreBreakdown(inp: MatchScoreInputs): MatchScoreBreakdown {
   const meldCards = inp.melds.reduce((s, m) => s + meldCardTotal(m), 0);
   const sizeBonuses = inp.melds.reduce((s, m) => s + meldSizeBonus(m), 0);
   const bhukaraBonus = inp.bhukaraPicked ? 50 : 0;
   const closingBonus = inp.closedMatch ? 50 : 0;
-  return meldCards + sizeBonuses + bhukaraBonus + closingBonus - inp.opponentHeldCardValues;
+  const heldPenalty = inp.ownHeldCardValues;
+  return {
+    meldCards,
+    sizeBonuses,
+    bhukaraBonus,
+    closingBonus,
+    heldPenalty,
+    total: meldCards + sizeBonuses + bhukaraBonus + closingBonus - heldPenalty,
+  };
+}
+
+export function scoreMatchForTeam(inp: MatchScoreInputs): number {
+  return scoreBreakdown(inp).total;
 }
 
 // Convenience: is this meld a pure sequence? (Used for first-drop enforcement.)

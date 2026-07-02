@@ -28,11 +28,13 @@ export function scoreFinishedMatch(match: Match): MatchScoring {
   const perTeam: Record<TeamId, number> = { A: 0, B: 0 };
   for (const t of ['A', 'B'] as TeamId[]) {
     const opp = t === 'A' ? 'B' : 'A';
+    // Suppress unused-var lint from the loop; opp is still useful conceptually.
+    void opp;
     perTeam[t] = scoreMatchForTeam({
       melds: match.teams[t].sequenceBox,
       bhukaraPicked: bhukaraTeam === t,
       closedMatch: closerTeam === t,
-      opponentHeldCardValues: heldByTeam[opp],
+      ownHeldCardValues: heldByTeam[t],
     });
   }
 

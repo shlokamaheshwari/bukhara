@@ -527,12 +527,11 @@ describe('scoring', () => {
       },
     };
     const s = scoreFinishedMatch(m);
-    // Team A: card values 5+5+5+5+5+10+10 = 45. Canasta bonus pure = 200.
-    // Bhukara +50 (player 0 is A). Closing +50. Opponents held: J(10)+K(10) = 20.
-    // Total = 45 + 200 + 50 + 50 - 20 = 325
-    expect(s.perTeam.A).toBe(325);
-    // Team B: no melds, held opponent cards = A's hand = 0. Score = 0 - 0 = 0.
-    expect(s.perTeam.B).toBe(0);
+    // New rule (2026-07): each team's OWN held cards are the penalty.
+    // Team A: melds 45 + canasta 200 + bhukara 50 + closing 50 - A's held 0 = 345
+    expect(s.perTeam.A).toBe(345);
+    // Team B: 0 melds + 0 bonuses - held (J♦=10) - held (K♦=10) = -20
+    expect(s.perTeam.B).toBe(-20);
     expect(s.void).toBe(false);
   });
 

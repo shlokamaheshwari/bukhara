@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type DragEvent as ReactDragEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
 import type {
   Card,
   Game,
@@ -23,7 +23,7 @@ import {
 import { cardLabel } from '../game/deck';
 import { endMatchAndAdvance } from '../game/matchEnd';
 import { isPure } from '../game/melds';
-import { meldCardTotal, meldSizeBonus } from '../game/scoring';
+import { meldCardTotal, meldSizeBonus, scoreBreakdown } from '../game/scoring';
 import { CardFace, StackedCards } from '../ui/Card';
 import type { MoveMessage } from '../net/messages';
 import '../ui/Card.css';
@@ -87,6 +87,11 @@ export default function GameScreen(props: GameScreenProps = {}) {
   });
   const [showSetup, setShowSetup] = useState(!isMP && !playerNames);
   const [showDiscardPile, setShowDiscardPile] = useState(false);
+  // Match-end modal is shown automatically when the match ends and hidden
+  // when the user clicks "Next match" (or after they've dismissed it).
+  const [dismissedMatchEnd, setDismissedMatchEnd] = useState<number | null>(null);
+  // Show a floating banner when someone picks up the bhukara.
+  const [bhukaraAnnouncement, setBhukaraAnnouncement] = useState<string | null>(null);
 
   const match = game.currentMatch;
   // Whose "view" is at the bottom of the table:
@@ -120,6 +125,25 @@ export default function GameScreen(props: GameScreenProps = {}) {
       setReveal({ revealedFor: null });
     }
   }
+
+  // Detect a fresh bhukara pickup — flash a banner for a few seconds.
+  const prevBhukaraTakenBy = useRef<number | null>(null);
+  useEffect(() => {
+    const now = match.bhukaraTakenBy;
+    if (now !== null && now !== prevBhukaraTakenBy.current) {
+      const who = match.players[now]?.name ?? `Player ${now + 1}`;
+      const team = match.players[now]?.teamId ?? '?';
+      setBhukaraAnnouncement(`${who} picked up the Bukhara — Team ${team} +50`);
+      const t = setTimeout(() => setBhukaraAnnouncement(null), 4000);
+      return () => clearTimeout(t);
+    }
+    prevBhukaraTakenBy.current = now;
+  }, [match.bhukaraTakenBy, match.players]);
+
+  // When the match number advances, clear the previous dismiss.
+  useEffect(() => {
+    setDismissedMatchEnd(null);
+  }, [match.matchNumber]);
 
   function toggleSelect(cardId: string) {
     const next = new Set(selected);
@@ -369,8 +393,143 @@ export default function GameScreen(props: GameScreenProps = {}) {
           onClose={() => setShowDiscardPile(false)}
         />
       )}
+
+      {bhukaraAnnouncement && (
+        <div className="announcement-banner">
+          <div className="announcement-emoji">🎴</div>
+          <div className="announcement-text">{bhukaraAnnouncement}</div>
+        </div>
+      )}
+
+      {matchOver && dismissedMatchEnd !== match.matchNumber && (
+        <MatchEndModal
+          game={game}
+          match={match}
+          onClose={() => setDismissedMatchEnd(match.matchNumber)}
+          onNextMatch={game.winner ? undefined : () => {
+            setDismissedMatchEnd(match.matchNumber);
+            onNextMatch();
+          }}
+        />
+      )}
     </div>
   );
+}
+
+// Shows the final scores when a match ends. Breaks down each team's total
+// so you can see exactly how the number came together — melds + bonuses -
+// held cards. Also shows the running series total after this match.
+function MatchEndModal({
+  game,
+  match,
+  onClose,
+  onNextMatch,
+}: {
+  game: Game;
+  match: Match;
+  onClose: () => void;
+  onNextMatch?: () => void;
+}) {
+  const heldByTeam: Record<'A' | 'B', number> = { A: 0, B: 0 };
+  for (const pid of [0, 1, 2, 3] as PlayerId[]) {
+    const t = TEAM_OF[pid];
+    for (const c of match.players[pid].hand) {
+      heldByTeam[t] += cardValueOf(c.rank);
+    }
+  }
+  const bhukaraTeam = match.bhukaraTakenBy !== null ? TEAM_OF[match.bhukaraTakenBy] : null;
+  const closerTeam = match.closedBy !== null ? TEAM_OF[match.closedBy] : null;
+  const voidMatch = match.phase === 'ended-void';
+
+  const teamRow = (t: 'A' | 'B') => {
+    const b = scoreBreakdown({
+      melds: match.teams[t].sequenceBox,
+      bhukaraPicked: bhukaraTeam === t,
+      closedMatch: closerTeam === t,
+      ownHeldCardValues: heldByTeam[t],
+    });
+    return { team: t, ...b };
+  };
+  const rows = voidMatch
+    ? null
+    : { A: teamRow('A'), B: teamRow('B') };
+
+  const totalsAfter = {
+    A: game.teams.A.totalScore + (voidMatch ? 0 : rows!.A.total),
+    B: game.teams.B.totalScore + (voidMatch ? 0 : rows!.B.total),
+  };
+  const winnerThisHand = voidMatch
+    ? null
+    : rows!.A.total === rows!.B.total
+      ? 'Tie'
+      : rows!.A.total > rows!.B.total ? 'A' : 'B';
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content match-end-modal" onClick={(e) => e.stopPropagation()}>
+        <h2>
+          Match {match.matchNumber} — {voidMatch ? 'Void' : winnerThisHand === 'Tie' ? 'Tied' : `Team ${winnerThisHand} takes it`}
+        </h2>
+        <p className="hint">
+          {voidMatch
+            ? 'The stock ran out before anyone closed. No score change; the deck is reshuffled for the next match.'
+            : `${match.closedBy !== null ? match.players[match.closedBy].name : 'Someone'} closed the match. Below is the full tally — cards in your melds add, cards still in hand subtract.`}
+        </p>
+
+        {rows && (
+          <table className="match-end-table">
+            <thead>
+              <tr>
+                <th>Team</th>
+                <th>Meld cards</th>
+                <th>7-card bonus</th>
+                <th>Bukhara</th>
+                <th>Closing</th>
+                <th>Held (−)</th>
+                <th>This match</th>
+                <th>Running total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(['A', 'B'] as const).map((t) => (
+                <tr key={t} className={`team-${t.toLowerCase()} ${winnerThisHand === t ? 'winner' : ''}`}>
+                  <td>Team {t}</td>
+                  <td>{rows[t].meldCards}</td>
+                  <td>{rows[t].sizeBonuses}</td>
+                  <td>{rows[t].bhukaraBonus}</td>
+                  <td>{rows[t].closingBonus}</td>
+                  <td>−{rows[t].heldPenalty}</td>
+                  <td className={rows[t].total >= 0 ? 'pos' : 'neg'}>{rows[t].total >= 0 ? '+' : ''}{rows[t].total}</td>
+                  <td className="running">{totalsAfter[t]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {game.winner && (
+          <div className="game-winner">🏆 Team {game.winner} wins the series</div>
+        )}
+
+        <div className="modal-buttons">
+          {onNextMatch && (
+            <button className="primary" onClick={onNextMatch}>
+              Start next match →
+            </button>
+          )}
+          <button onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Small local helper so the match-end modal doesn't need extra imports.
+function cardValueOf(rank: number): number {
+  if (rank === 1) return 15;
+  if (rank === 2) return 10;
+  if (rank >= 3 && rank <= 7) return 5;
+  return 10;
 }
 
 // Shows every card in the discard pile, oldest first, most-recent last.
