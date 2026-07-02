@@ -9,6 +9,7 @@ import type {
   TripletMeld,
   TripletMeldCard,
 } from './types';
+import { JOKER_RANK } from './types';
 import type { SequenceAttempt, TripletAttempt } from './melds';
 import { validateSequence, validateTriplet } from './melds';
 import { meldCardTotal, isPureSequence } from './scoring';
@@ -176,10 +177,16 @@ export function dropMeld(match: Match, input: DropMeldInput): MoveResult {
 // Optional joker-position adjustment applied to an already-in-meld card by id.
 export type JokerMove = { cardId: string; newActingAs: SeqPos };
 
+// Reinterpret an already-committed card's role in the meld. Lets the user
+// switch a natural 2 to a joker (or a joker back to natural) at the same time
+// as adding cards. Only 2s can flip to isJoker=true; validation enforces that.
+export type CardReassignment = { cardId: string; newActingAs: SeqPos; newIsJoker: boolean };
+
 export type AddToSequenceInput = {
   meldId: string;
   additions: SequenceMeldCard[]; // cards leaving hand
   jokerMoves?: JokerMove[]; // repositioning already-committed joker(s)
+  cardReassignments?: CardReassignment[]; // reinterpret existing cards' roles
 };
 
 export function addToSequence(match: Match, input: AddToSequenceInput): MoveResult {
@@ -199,22 +206,40 @@ export function addToSequence(match: Match, input: AddToSequenceInput): MoveResu
   const newHand = removeFromHand(player.hand, cardIds);
   if (newHand === null) return { ok: false, reason: 'Additions include cards not in your hand' };
 
-  // Build the updated sequence: existing cards (with joker repositioning) + additions.
+  // Build the updated sequence: existing cards (with joker repositioning and
+  // role reassignments) + additions.
   const jokerMap = new Map<string, SeqPos>();
   (input.jokerMoves ?? []).forEach((jm) => jokerMap.set(jm.cardId, jm.newActingAs));
 
+  const reassignMap = new Map<string, CardReassignment>();
+  (input.cardReassignments ?? []).forEach((r) => reassignMap.set(r.cardId, r));
+
+  // Sanity-check reassignments before applying.
+  for (const r of input.cardReassignments ?? []) {
+    const original = meld.cards.find((c) => c.card.id === r.cardId);
+    if (!original) return { ok: false, reason: 'reassignment targets a card not in this meld' };
+    if (r.newIsJoker && original.card.rank !== JOKER_RANK) {
+      return { ok: false, reason: 'only 2s can act as jokers' };
+    }
+  }
+
   const existingUpdated: SequenceMeldCard[] = meld.cards.map((c) => {
+    // Reassignment wins over a plain joker move — it can flip roles too.
+    const reassign = reassignMap.get(c.card.id);
+    if (reassign) {
+      return { card: c.card, actingAs: reassign.newActingAs, isJoker: reassign.newIsJoker };
+    }
     const move = jokerMap.get(c.card.id);
-    if (move === undefined) return c;
-    if (!c.isJoker) {
-      // Non-joker cards cannot be repositioned.
+    if (move !== undefined) {
       return { ...c, actingAs: move };
     }
-    return { ...c, actingAs: move };
+    return c;
   });
 
-  // Ensure jokerMoves only referenced joker cards.
+  // Ensure jokerMoves only referenced joker cards (unless the same card is
+  // being reassigned — then the reassignment covers it).
   for (const jm of input.jokerMoves ?? []) {
+    if (reassignMap.has(jm.cardId)) continue;
     const original = meld.cards.find((c) => c.card.id === jm.cardId);
     if (!original) return { ok: false, reason: 'jokerMove targets a card not in this meld' };
     if (!original.isJoker) return { ok: false, reason: 'jokerMove targets a non-joker card' };

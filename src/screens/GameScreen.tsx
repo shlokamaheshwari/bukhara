@@ -1166,14 +1166,14 @@ function MeldModal({
         targetMeldId={targetMeldId}
         title={mode.kind === 'drop-sequence' ? 'Drop new sequence' : 'Add to sequence'}
         onCancel={onClose}
-        onConfirm={(attempt, jokerMoves) => {
+        onConfirm={(attempt, reassignments) => {
           if (onMultiplayerSubmit) {
             if (mode.kind === 'drop-sequence') {
               onMultiplayerSubmit({ type: 'move-drop-meld', input: { kind: 'sequence', cards: attempt } });
             } else {
               onMultiplayerSubmit({
                 type: 'move-add-to-sequence',
-                input: { meldId: mode.meldId, additions: attempt, jokerMoves },
+                input: { meldId: mode.meldId, additions: attempt, cardReassignments: reassignments },
               });
             }
             return;
@@ -1184,7 +1184,7 @@ function MeldModal({
             onSubmit(() => addToSequence(match, {
               meldId: mode.meldId,
               additions: attempt,
-              jokerMoves,
+              cardReassignments: reassignments,
             }));
           }
         }}
@@ -1249,7 +1249,10 @@ function SequencePicker({
   title: string;
   targetMeldId?: string; // set when adding to an existing sequence
   onCancel: () => void;
-  onConfirm: (attempt: SequenceMeldCard[], jokerMoves?: { cardId: string; newActingAs: SeqPos }[]) => void;
+  onConfirm: (
+    attempt: SequenceMeldCard[],
+    reassignments?: { cardId: string; newActingAs: SeqPos; newIsJoker: boolean }[],
+  ) => void;
 }) {
   const cards = useMemo(() => findCards(match, cardIds), [match, cardIds]);
   const [rows, setRows] = useState(() =>
@@ -1260,10 +1263,10 @@ function SequencePicker({
     })),
   );
 
-  // Look up the target meld's existing jokers — user can atomically move them
-  // to make room for the new cards. Same-turn add + joker move is the only
-  // way to swap a natural card into the joker's slot without hitting a
-  // "gap in sequence" or "two cards playing the same slot" error.
+  // Look up the target meld — user can reinterpret ANY of its cards (natural
+  // → joker, joker → different slot, joker → natural) atomically with the
+  // add. This is required for swaps like: sequence 2♦,3♦,4♦, add 6♦, want
+  // 3♦,4♦,2♦(joker at 5),6♦.
   const targetMeld = useMemo(() => {
     if (!targetMeldId) return null;
     for (const team of ['A', 'B'] as const) {
@@ -1272,28 +1275,45 @@ function SequencePicker({
     }
     return null;
   }, [match, targetMeldId]);
-  const targetJokers = targetMeld
-    ? targetMeld.cards.filter((c) => c.isJoker)
-    : [];
-  const [jokerPositions, setJokerPositions] = useState<Record<string, SeqPos>>(() => {
-    const initial: Record<string, SeqPos> = {};
-    for (const j of targetJokers) initial[j.card.id] = j.actingAs;
-    return initial;
-  });
+  // Track a "reinterpreted" view of every existing card in the meld. Defaults
+  // to the current role. User can edit slot + joker flag.
+  const [existingRows, setExistingRows] = useState<
+    { cardId: string; card: Card; actingAs: SeqPos; isJoker: boolean }[]
+  >(() =>
+    (targetMeld?.cards ?? []).map((c) => ({
+      cardId: c.card.id,
+      card: c.card,
+      actingAs: c.actingAs,
+      isJoker: c.isJoker,
+    })),
+  );
 
   function update(idx: number, patch: Partial<(typeof rows)[number]>) {
     setRows((r) => r.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
   }
+  function updateExisting(idx: number, patch: Partial<(typeof existingRows)[number]>) {
+    setExistingRows((r) => r.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
+  }
 
   function submit() {
-    const moves: { cardId: string; newActingAs: SeqPos }[] = [];
-    for (const j of targetJokers) {
-      const newPos = jokerPositions[j.card.id];
-      if (newPos !== undefined && newPos !== j.actingAs) {
-        moves.push({ cardId: j.card.id, newActingAs: newPos });
+    const reassignments: {
+      cardId: string;
+      newActingAs: SeqPos;
+      newIsJoker: boolean;
+    }[] = [];
+    for (const orig of targetMeld?.cards ?? []) {
+      const edited = existingRows.find((e) => e.cardId === orig.card.id);
+      if (!edited) continue;
+      const changed = edited.actingAs !== orig.actingAs || edited.isJoker !== orig.isJoker;
+      if (changed) {
+        reassignments.push({
+          cardId: edited.cardId,
+          newActingAs: edited.actingAs,
+          newIsJoker: edited.isJoker,
+        });
       }
     }
-    onConfirm(rows, moves.length > 0 ? moves : undefined);
+    onConfirm(rows, reassignments.length > 0 ? reassignments : undefined);
   }
 
   return (
@@ -1328,27 +1348,37 @@ function SequencePicker({
           </tbody>
         </table>
 
-        {targetJokers.length > 0 && (
+        {targetMeld && existingRows.length > 0 && (
           <>
             <p className="hint" style={{ marginTop: 16 }}>
-              This meld has a joker. If your new card wants the joker's slot, move the joker to another slot in the sequence at the same time.
+              Cards already in this meld — reinterpret if you need to. For example, flip a natural 2 into a joker and change its slot so a new card fits.
             </p>
             <table>
-              <thead><tr><th>Existing joker</th><th>Currently at</th><th>Move to slot</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Existing card</th>
+                  <th>Slot</th>
+                  <th>Joker?</th>
+                </tr>
+              </thead>
               <tbody>
-                {targetJokers.map((j) => (
-                  <tr key={j.card.id}>
-                    <td>{cardLabel(j.card)}</td>
-                    <td>{j.actingAs}</td>
+                {existingRows.map((r, i) => (
+                  <tr key={r.cardId}>
+                    <td>{cardLabel(r.card)}</td>
                     <td>
                       <input
                         type="number" min={1} max={14}
-                        value={jokerPositions[j.card.id] ?? j.actingAs}
-                        onChange={(e) => setJokerPositions({
-                          ...jokerPositions,
-                          [j.card.id]: Number(e.target.value) as SeqPos,
-                        })}
+                        value={r.actingAs}
+                        onChange={(e) => updateExisting(i, { actingAs: Number(e.target.value) as SeqPos })}
                         style={{ width: 60 }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={r.isJoker}
+                        disabled={r.card.rank !== 2}
+                        onChange={(e) => updateExisting(i, { isJoker: e.target.checked })}
                       />
                     </td>
                   </tr>
