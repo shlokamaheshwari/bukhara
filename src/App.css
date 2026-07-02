@@ -1343,3 +1343,260 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
 [data-theme="dark"] .lobby-online-name { background: rgba(244, 237, 221, 0.06); }
 .lobby-online-name.offline { opacity: 0.5; }
 .lobby-online-empty { font-family: 'Fraunces', serif; font-style: italic; font-size: 12px; color: var(--text-dim); }
+
+/* =============================================================
+   MOBILE (≤ 768px)
+   Reflow the desktop 3-column table layout into a single vertical
+   stack, shrink card sizes, and turn the modals into full-screen
+   sheets. Touch drag-and-drop still uses the HTML5 API which works
+   in modern mobile browsers but not iOS Safari — Auto-sort is the
+   escape hatch there.
+   ============================================================= */
+
+@media (max-width: 768px) {
+  /* Header — wrap and shrink. */
+  .topbar {
+    padding: 10px 14px;
+    padding-right: 60px; /* leave less room for the toggle */
+    margin: 6px 6px 0;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .topbar h1 { font-size: 20px; letter-spacing: 0.5px; }
+  .scores { gap: 6px; flex-wrap: wrap; }
+  .score-chip { padding: 5px 10px; font-size: 11px; }
+  .score-chip strong { font-size: 14px; }
+  .match-chip { padding: 4px 10px; font-size: 10px; }
+  button.minor { padding: 5px 10px; font-size: 10px; }
+
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+    top: 12px;
+    right: 12px;
+    font-size: 15px;
+  }
+
+  /* Table — collapse to a vertical stack. */
+  .table {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 8px;
+    margin: 6px;
+    min-height: auto;
+    border-radius: 14px;
+  }
+
+  /* Bhukara + opponents together in a horizontal strip at top. */
+  .bhukara-side {
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 8px 10px;
+    gap: 6px;
+    order: 2;
+  }
+  .bhukara-side .pile-label { font-size: 9px; letter-spacing: 1.5px; }
+
+  /* Opponent seats become a compact horizontal strip. */
+  .seat-top, .seat-left, .seat-right {
+    order: 1;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+  }
+  .seat-summary {
+    padding: 8px 10px;
+    min-width: 0;
+    gap: 4px;
+    border-radius: 12px;
+    flex-direction: row;
+    text-align: left;
+  }
+  .seat-avatar-wrap { width: 40px; height: 40px; flex-shrink: 0; }
+  .seat-avatar { width: 40px; height: 40px; font-size: 15px; }
+  .seat-turn-glow { inset: -4px; }
+  .team-dot { width: 10px; height: 10px; }
+  .seat-role { display: none; }
+  .seat-name { font-size: 12px; }
+  .seat-count { font-size: 9px; margin-top: 2px; letter-spacing: 1px; }
+
+  /* Wrap the three opponent seats into one row. */
+  .table > .seat-top, .table > .seat-left, .table > .seat-right {
+    display: none; /* individually hidden — the combined mobile row is injected via JS-free flex trick below */
+  }
+
+  /* Use CSS grid to place all opponents in a single row on mobile
+     by re-ordering flex children — we show them but in one horizontal band. */
+  .table > .seat-top    { display: flex; order: 1; flex: 1; }
+  .table > .seat-left   { display: flex; order: 1; flex: 1; }
+  .table > .seat-right  { display: flex; order: 1; flex: 1; }
+  .table > .seat-top,
+  .table > .seat-left,
+  .table > .seat-right {
+    min-width: 0;
+    padding: 0;
+  }
+  .table > .seat-top    { order: 1.1; }
+  .table > .seat-left   { order: 1.2; }
+  .table > .seat-right  { order: 1.3; }
+
+  /* Pack all three seats into one wrapping row using flex on .table */
+  .table {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .seat-top, .seat-left, .seat-right {
+    flex-basis: 33%;
+    max-width: 33%;
+  }
+  .seat-summary .seat-cards { display: none; }
+
+  /* Center area — full width. */
+  .table-center {
+    order: 3;
+    flex: 1 1 100%;
+    gap: 10px;
+  }
+  .bhukara-side {
+    order: 2;
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .piles {
+    gap: 16px;
+    padding: 12px;
+    justify-content: space-around;
+    width: 100%;
+  }
+  .pile { min-width: 0; gap: 6px; }
+  .pile-label { font-size: 9px; letter-spacing: 1.5px; }
+  .discard-pile { min-width: 0; }
+  .discard-fan { padding-left: 22px; min-height: 50px; }
+
+  /* Team boxes stack. */
+  .team-boxes {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    max-width: none;
+  }
+  .team-box { padding: 10px; min-height: 80px; border-radius: 12px; }
+  .team-box-header { font-size: 12px; margin-bottom: 6px; }
+  .meld-strip { padding: 6px 8px; margin: 4px 0; border-radius: 8px; }
+  .meld-strip-label { font-size: 9px; letter-spacing: 1px; }
+
+  .turn-status {
+    font-size: 11px;
+    padding: 6px 12px;
+    text-align: center;
+  }
+  .turn-status strong { font-size: 13px; }
+
+  /* Bottom seat + hand + toolbar. */
+  .seat-bottom {
+    order: 4;
+    flex: 1 1 100%;
+    padding: 10px 8px 12px;
+    border-radius: 14px;
+  }
+  .toolbar {
+    gap: 6px;
+    padding: 8px 6px;
+    margin-bottom: 6px;
+  }
+  .toolbar-group { gap: 4px; }
+  .toolbar-group + .toolbar-group {
+    padding-left: 6px;
+    border-left: none;
+  }
+  .toolbar-label { font-size: 9px; margin-right: 2px; letter-spacing: 1px; }
+  .tb-btn {
+    padding: 8px 10px;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+  .selected-count { padding: 4px 8px; font-size: 10px; letter-spacing: 1px; }
+
+  /* Cards in hand — smaller. */
+  .hand-strip { min-height: 90px; padding: 6px 2px; }
+  .hand-section { min-height: 82px; padding: 4px 6px; border-radius: 10px; }
+  .hand-label { font-size: 10px; }
+  .hand-label strong { font-size: 12px; }
+  .hand-hint { display: none; }
+  .card-with-indicator + .card-with-indicator { margin-left: -20px; }
+
+  /* Smaller card sizes across the board when inside the hand. */
+  .hand-strip .pc,
+  .hand-strip .pc-md {
+    --pc-w: 48px;
+    --pc-h: 68px;
+  }
+
+  /* Drop targets stay usable, just smaller. */
+  .drop-indicator { height: 70px; width: 2px; }
+  .section-gap { min-height: 82px; }
+  .section-gap.active { width: 18px; }
+  .end-target { min-height: 82px; }
+  .end-target.visible { width: 72px; font-size: 9px; }
+
+  /* Auth / landing / lobby panels — full-width sheets. */
+  .auth-panel,
+  .landing-panel,
+  .lobby-panel {
+    padding: 28px 20px;
+    border-radius: 16px;
+    max-width: 100%;
+  }
+  .auth-logo { font-size: 32px; letter-spacing: 1.5px; margin-bottom: 22px; }
+
+  .lobby-panel.wide { padding: 22px 16px; }
+  .lobby-head { flex-wrap: wrap; gap: 12px; }
+  .lobby-seats {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .lobby-seat { padding: 12px; min-height: 130px; }
+
+  .your-controls { padding: 14px; }
+  .your-controls-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .your-controls-buttons { flex-wrap: wrap; }
+  .your-controls-buttons button { flex: 1 1 auto; }
+
+  /* Modals — turn into near-full-screen sheets. */
+  .modal-content {
+    padding: 20px 16px;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: 14px;
+    width: calc(100vw - 20px);
+  }
+  .modal-content h2 { font-size: 20px; }
+  .setup-seats { grid-template-columns: 1fr; }
+  .discard-grid {
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 10px 6px;
+  }
+  .discard-grid .pc-md { --pc-w: 54px; --pc-h: 76px; }
+
+  /* Reveal gate. */
+  .reveal-inner { padding: 24px 20px; }
+  .reveal-text { font-size: 14px; }
+}
+
+/* Very small phones — trim further. */
+@media (max-width: 380px) {
+  .topbar h1 { font-size: 17px; }
+  .score-chip strong { font-size: 12px; }
+  .seat-summary { padding: 6px 8px; }
+  .seat-avatar-wrap, .seat-avatar { width: 34px; height: 34px; }
+  .seat-name { font-size: 11px; }
+  .hand-strip .pc, .hand-strip .pc-md {
+    --pc-w: 42px;
+    --pc-h: 60px;
+  }
+  .tb-btn { padding: 7px 8px; font-size: 10px; }
+}
