@@ -49,8 +49,48 @@ export class RoomDO extends DurableObject<Env> {
   game: Game | null = null;
   seatToUsername: Record<PlayerId, string | null> = { 0: null, 1: null, 2: null, 3: null };
   roomCode = '';
+  loaded = false;
+
+  // Restore persisted state on first access so a deploy or DO restart doesn't
+  // wipe an in-progress game.
+  private async loadState(): Promise<void> {
+    if (this.loaded) return;
+    this.loaded = true;
+    const stored = await this.ctx.storage.get<{
+      started: boolean;
+      game: Game | null;
+      seatToUsername: Record<PlayerId, string | null>;
+      presences: Presence[]; // seat-holding entries so bots + seat claims survive
+      roomCode: string;
+    }>('state');
+    if (!stored) return;
+    this.started = stored.started;
+    this.game = stored.game;
+    this.seatToUsername = stored.seatToUsername;
+    this.roomCode = stored.roomCode;
+    // Rebuild presence map — restored humans start offline until they reconnect.
+    for (const p of stored.presences) {
+      this.presences.set(p.connectionId, {
+        ...p,
+        online: p.isBot, // bots are always online; humans wait to reconnect
+      });
+    }
+  }
+
+  private async saveState(): Promise<void> {
+    await this.ctx.storage.put('state', {
+      started: this.started,
+      game: this.game,
+      seatToUsername: this.seatToUsername,
+      // Only persist seat-holders — non-seated observers are ephemeral.
+      presences: [...this.presences.values()].filter((p) => p.seatIdx !== null),
+      roomCode: this.roomCode,
+    });
+  }
 
   async fetch(request: Request): Promise<Response> {
+    await this.ctx.blockConcurrencyWhile(() => this.loadState());
+
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected WebSocket', { status: 426 });
     }
@@ -172,6 +212,24 @@ export class RoomDO extends DurableObject<Env> {
         const bot = [...this.presences.values()].find((p) => p.seatIdx === data.seatIdx && p.isBot);
         if (bot) this.presences.delete(bot.connectionId);
         break;
+      }
+      case 'react': {
+        // Ephemeral — not persisted. Rebroadcast to every open socket so all
+        // players see the emoji fly up from the sender's seat.
+        const emoji = String(data.emoji ?? '').slice(0, 8);
+        if (!emoji) return; // discard
+        const seat = presence.seatIdx as 0 | 1 | 2 | 3 | null;
+        for (const ws of this.connections.values()) {
+          this.sendTo(ws, {
+            type: 'reaction',
+            emoji,
+            fromUsername: presence.username,
+            fromDisplayName: presence.displayName,
+            fromSeat: seat,
+            at: Date.now(),
+          });
+        }
+        return; // no broadcast, no persist
       }
       default:
         this.handleMove(data as MoveMessage, senderId, presence);
@@ -338,6 +396,8 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   private broadcast(): void {
+    // Persist first (fire-and-forget), then push to every socket.
+    this.saveState().catch(() => { /* best-effort */ });
     for (const [connId, ws] of this.connections.entries()) {
       const presence = this.presences.get(connId);
       if (!presence) continue;

@@ -227,6 +227,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
             player={match.players[seatAt(viewingSeat, 'top')]}
             isTurn={match.currentTurn === seatAt(viewingSeat, 'top')}
             label="Partner"
+            handSize={props.netHandSizes?.[seatAt(viewingSeat, 'top')]}
           />
         </div>
         <div className="seat seat-left">
@@ -235,6 +236,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
             isTurn={match.currentTurn === seatAt(viewingSeat, 'left')}
             vertical
             label="Opponent"
+            handSize={props.netHandSizes?.[seatAt(viewingSeat, 'left')]}
           />
         </div>
         <div className="seat seat-right">
@@ -243,6 +245,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
             isTurn={match.currentTurn === seatAt(viewingSeat, 'right')}
             vertical
             label="Opponent"
+            handSize={props.netHandSizes?.[seatAt(viewingSeat, 'right')]}
           />
         </div>
 
@@ -271,8 +274,8 @@ export default function GameScreen(props: GameScreenProps = {}) {
           </div>
 
           <div className="team-boxes">
-            <TeamBox team="A" match={match} onAddTo={beginAddTo} onMoveJoker={beginMoveJoker} />
-            <TeamBox team="B" match={match} onAddTo={beginAddTo} onMoveJoker={beginMoveJoker} />
+            <TeamBox team="A" match={match} viewingSeat={viewingSeat} isYourTurn={isYourTurn} onAddTo={beginAddTo} onMoveJoker={beginMoveJoker} />
+            <TeamBox team="B" match={match} viewingSeat={viewingSeat} isYourTurn={isYourTurn} onAddTo={beginAddTo} onMoveJoker={beginMoveJoker} />
           </div>
 
           <div className="turn-status">
@@ -536,11 +539,13 @@ function SeatSummary({
   isTurn,
   vertical,
   label,
+  handSize,
 }: {
   player: { id: PlayerId; name: string; teamId: 'A' | 'B'; hand: Card[] };
   isTurn: boolean;
   vertical?: boolean;
   label?: string;
+  handSize?: number; // authoritative count from server (hand itself is redacted for opponents)
 }) {
   const initials = player.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || 'P?';
   const avatarPalette = {
@@ -566,7 +571,7 @@ function SeatSummary({
         {label && <div className="seat-role">{label}</div>}
         <div className="seat-name">{player.name}</div>
         <div className="seat-count">
-          <span className="dot" /> {player.hand.length} cards
+          <span className="dot" /> {handSize ?? player.hand.length} cards
         </div>
       </div>
     </div>
@@ -910,17 +915,22 @@ function HandSection({
 function TeamBox({
   team,
   match,
+  viewingSeat,
+  isYourTurn,
   onAddTo,
   onMoveJoker,
 }: {
   team: 'A' | 'B';
   match: Match;
+  viewingSeat: PlayerId;
+  isYourTurn: boolean;
   onAddTo: (meld: Meld) => void;
   onMoveJoker: (meldId: string, jokerCardId: string) => void;
 }) {
   const state = match.teams[team];
-  const currentTeam = TEAM_OF[match.currentTurn];
-  const canAct = currentTeam === team && match.turnPhase === 'may-meld';
+  // Only YOU can edit YOUR team's box during YOUR own turn — partners can't
+  // reach across to touch each other's melds.
+  const canAct = isYourTurn && TEAM_OF[viewingSeat] === team && match.turnPhase === 'may-meld';
   return (
     <div className={`team-box team-box-${team.toLowerCase()}`}>
       <div className="team-box-header">
