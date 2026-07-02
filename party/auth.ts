@@ -51,7 +51,7 @@ export class AuthDO extends DurableObject<Env> {
       inviteCode?: string;
     };
 
-    if (body.inviteCode !== this.env.INVITE_CODE) {
+    if (normalizeCode(body.inviteCode ?? '') !== normalizeCode(this.env.INVITE_CODE)) {
       return jsonResponse({ error: 'Invalid invite code' }, 403);
     }
     const username = (body.username ?? '').toLowerCase().trim();
@@ -99,6 +99,17 @@ export class AuthDO extends DurableObject<Env> {
     if (!payload) return jsonResponse({ valid: false });
     return jsonResponse({ valid: true, username: payload.username, displayName: payload.displayName });
   }
+}
+
+// Mobile keyboards frequently substitute curly quotes for straight quotes and
+// add zero-width or trailing spaces. Normalize both sides of the invite-code
+// comparison so a valid friend doesn't get locked out over typography.
+function normalizeCode(s: string): string {
+  return s
+    .replace(/[‘’]/g, "'") // curly single → straight
+    .replace(/[“”]/g, '"') // curly double → straight
+    .replace(/​|‌|‍|﻿/g, '') // zero-width chars
+    .trim();
 }
 
 // ---- CORS ---------------------------------------------------------------

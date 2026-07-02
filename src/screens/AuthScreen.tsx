@@ -70,6 +70,9 @@ export default function AuthScreen({
               required
               minLength={3}
               disabled={busy}
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
             />
           </label>
           <label>
@@ -106,6 +109,10 @@ export default function AuthScreen({
                   placeholder="Ask the host for the invite code"
                   required
                   disabled={busy}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck={false}
                 />
               </label>
             </>
