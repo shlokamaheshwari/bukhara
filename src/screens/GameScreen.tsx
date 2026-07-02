@@ -987,25 +987,36 @@ function MeldModal({
   onMultiplayerSubmit?: (msg: MoveMessage) => void;
 }) {
   if (mode.kind === 'drop-sequence' || mode.kind === 'add-to-sequence') {
+    // For add-to-sequence, pass the target meld so the picker can also
+    // reposition its jokers atomically with the new additions.
+    const targetMeldId = mode.kind === 'add-to-sequence' ? mode.meldId : undefined;
     return (
       <SequencePicker
         cardIds={mode.cardIds}
         match={match}
+        targetMeldId={targetMeldId}
         title={mode.kind === 'drop-sequence' ? 'Drop new sequence' : 'Add to sequence'}
         onCancel={onClose}
-        onConfirm={(attempt) => {
+        onConfirm={(attempt, jokerMoves) => {
           if (onMultiplayerSubmit) {
             if (mode.kind === 'drop-sequence') {
               onMultiplayerSubmit({ type: 'move-drop-meld', input: { kind: 'sequence', cards: attempt } });
             } else {
-              onMultiplayerSubmit({ type: 'move-add-to-sequence', input: { meldId: mode.meldId, additions: attempt } });
+              onMultiplayerSubmit({
+                type: 'move-add-to-sequence',
+                input: { meldId: mode.meldId, additions: attempt, jokerMoves },
+              });
             }
             return;
           }
           if (mode.kind === 'drop-sequence') {
             onSubmit(() => dropMeld(match, { kind: 'sequence', cards: attempt }));
           } else {
-            onSubmit(() => addToSequence(match, { meldId: mode.meldId, additions: attempt }));
+            onSubmit(() => addToSequence(match, {
+              meldId: mode.meldId,
+              additions: attempt,
+              jokerMoves,
+            }));
           }
         }}
       />
@@ -1060,14 +1071,16 @@ function SequencePicker({
   cardIds,
   match,
   title,
+  targetMeldId,
   onCancel,
   onConfirm,
 }: {
   cardIds: string[];
   match: Match;
   title: string;
+  targetMeldId?: string; // set when adding to an existing sequence
   onCancel: () => void;
-  onConfirm: (attempt: SequenceMeldCard[]) => void;
+  onConfirm: (attempt: SequenceMeldCard[], jokerMoves?: { cardId: string; newActingAs: SeqPos }[]) => void;
 }) {
   const cards = useMemo(() => findCards(match, cardIds), [match, cardIds]);
   const [rows, setRows] = useState(() =>
@@ -1077,9 +1090,43 @@ function SequencePicker({
       isJoker: false,
     })),
   );
+
+  // Look up the target meld's existing jokers — user can atomically move them
+  // to make room for the new cards. Same-turn add + joker move is the only
+  // way to swap a natural card into the joker's slot without hitting a
+  // "gap in sequence" or "two cards playing the same slot" error.
+  const targetMeld = useMemo(() => {
+    if (!targetMeldId) return null;
+    for (const team of ['A', 'B'] as const) {
+      const found = match.teams[team].sequenceBox.find((m) => m.id === targetMeldId);
+      if (found && found.kind === 'sequence') return found;
+    }
+    return null;
+  }, [match, targetMeldId]);
+  const targetJokers = targetMeld
+    ? targetMeld.cards.filter((c) => c.isJoker)
+    : [];
+  const [jokerPositions, setJokerPositions] = useState<Record<string, SeqPos>>(() => {
+    const initial: Record<string, SeqPos> = {};
+    for (const j of targetJokers) initial[j.card.id] = j.actingAs;
+    return initial;
+  });
+
   function update(idx: number, patch: Partial<(typeof rows)[number]>) {
     setRows((r) => r.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
   }
+
+  function submit() {
+    const moves: { cardId: string; newActingAs: SeqPos }[] = [];
+    for (const j of targetJokers) {
+      const newPos = jokerPositions[j.card.id];
+      if (newPos !== undefined && newPos !== j.actingAs) {
+        moves.push({ cardId: j.card.id, newActingAs: newPos });
+      }
+    }
+    onConfirm(rows, moves.length > 0 ? moves : undefined);
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -1111,8 +1158,39 @@ function SequencePicker({
             ))}
           </tbody>
         </table>
+
+        {targetJokers.length > 0 && (
+          <>
+            <p className="hint" style={{ marginTop: 16 }}>
+              This meld has a joker. If your new card wants the joker's slot, move the joker to another slot in the sequence at the same time.
+            </p>
+            <table>
+              <thead><tr><th>Existing joker</th><th>Currently at</th><th>Move to slot</th></tr></thead>
+              <tbody>
+                {targetJokers.map((j) => (
+                  <tr key={j.card.id}>
+                    <td>{cardLabel(j.card)}</td>
+                    <td>{j.actingAs}</td>
+                    <td>
+                      <input
+                        type="number" min={1} max={14}
+                        value={jokerPositions[j.card.id] ?? j.actingAs}
+                        onChange={(e) => setJokerPositions({
+                          ...jokerPositions,
+                          [j.card.id]: Number(e.target.value) as SeqPos,
+                        })}
+                        style={{ width: 60 }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
         <div className="modal-buttons">
-          <button className="primary" onClick={() => onConfirm(rows)}>Submit</button>
+          <button className="primary" onClick={submit}>Submit</button>
           <button onClick={onCancel}>Cancel</button>
         </div>
       </div>
