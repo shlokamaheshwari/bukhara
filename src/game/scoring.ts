@@ -15,10 +15,15 @@ export function meldCardTotal(meld: Meld): number {
   return meld.cards.reduce((sum, mc) => sum + cardValue(mc.card.rank), 0);
 }
 
-// Bonus for a completed 7+ card meld: 200 pure, 100 impure. Zero below 7.
+// Size bonuses — the largest tier that applies wins (bonuses do NOT stack).
+//   ≥ 13 cards → 500 (full-length "ganastha")
+//   ≥ 7  cards → 200 pure / 100 impure (standard 7-card bonus)
+//   otherwise → 0
 export function meldSizeBonus(meld: Meld): number {
-  if (meld.cards.length < 7) return 0;
-  return isPure(meld) ? 200 : 100;
+  const n = meld.cards.length;
+  if (n >= 13) return 500;
+  if (n >= 7) return isPure(meld) ? 200 : 100;
+  return 0;
 }
 
 // Full team score for a match. Cards in your team's melds count positive;
