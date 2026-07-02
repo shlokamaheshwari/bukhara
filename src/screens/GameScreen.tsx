@@ -25,6 +25,7 @@ import { endMatchAndAdvance } from '../game/matchEnd';
 import { isPure } from '../game/melds';
 import { meldCardTotal, meldSizeBonus, scoreBreakdown } from '../game/scoring';
 import { CardFace, StackedCards } from '../ui/Card';
+import { autoSolveAdd } from '../game/autoSolve';
 import type { MoveMessage } from '../net/messages';
 import '../ui/Card.css';
 import '../App.css';
@@ -208,6 +209,66 @@ export default function GameScreen(props: GameScreenProps = {}) {
     setMeldModal({ kind: 'move-joker', meldId, jokerCardId });
   }
 
+  // Drag a hand card onto an existing meld. Auto-solver figures out the intent
+  // when it's unambiguous; otherwise we fall back to the pick-a-slot modal
+  // (single-card preselected).
+  function onDropCardOnMeld(meld: Meld, cardId: string) {
+    if (!isYourTurn || match.turnPhase !== 'may-meld') return;
+    const myTeam = TEAM_OF[viewingSeat];
+    const meldIsOnMyTeam = match.teams[myTeam].sequenceBox.some((m) => m.id === meld.id);
+    if (!meldIsOnMyTeam) return;
+    const card = viewingPlayer.hand.find((c) => c.id === cardId);
+    if (!card) return;
+
+    const solved = autoSolveAdd(card, meld);
+    if (solved.kind === 'no-fit') {
+      setError("That card doesn't fit this meld.");
+      return;
+    }
+    if (solved.kind === 'ambiguous') {
+      // Fall back to the manual picker with just this card preselected.
+      setSelected(new Set([cardId]));
+      setMeldModal(
+        meld.kind === 'sequence'
+          ? { kind: 'add-to-sequence', meldId: meld.id, cardIds: [cardId] }
+          : { kind: 'add-to-triplet', meldId: meld.id, cardIds: [cardId] },
+      );
+      return;
+    }
+    if (solved.kind === 'sequence') {
+      if (isMP) {
+        netSend!({
+          type: 'move-add-to-sequence',
+          input: {
+            meldId: meld.id,
+            additions: solved.additions,
+            cardReassignments: solved.reassignments,
+          },
+        });
+      } else {
+        apply(addToSequence(match, {
+          meldId: meld.id,
+          additions: solved.additions,
+          cardReassignments: solved.reassignments,
+        }));
+      }
+      return;
+    }
+    if (solved.kind === 'triplet') {
+      if (isMP) {
+        netSend!({
+          type: 'move-add-to-triplet',
+          input: { meldId: meld.id, additions: solved.additions },
+        });
+      } else {
+        apply(addToTriplet(match, {
+          meldId: meld.id,
+          additions: solved.additions,
+        }));
+      }
+    }
+  }
+
   // Pass-and-play reveal gate applies to solo only. Multiplayer always shows your hand.
   const isRevealed = isMP ? true : reveal.revealedFor === match.currentTurn;
   const matchOver = match.phase !== 'playing';
@@ -298,8 +359,8 @@ export default function GameScreen(props: GameScreenProps = {}) {
           </div>
 
           <div className="team-boxes">
-            <TeamBox team="A" match={match} viewingSeat={viewingSeat} isYourTurn={isYourTurn} onAddTo={beginAddTo} onMoveJoker={beginMoveJoker} />
-            <TeamBox team="B" match={match} viewingSeat={viewingSeat} isYourTurn={isYourTurn} onAddTo={beginAddTo} onMoveJoker={beginMoveJoker} />
+            <TeamBox team="A" match={match} viewingSeat={viewingSeat} isYourTurn={isYourTurn} onAddTo={beginAddTo} onMoveJoker={beginMoveJoker} onDropCardOnMeld={onDropCardOnMeld} />
+            <TeamBox team="B" match={match} viewingSeat={viewingSeat} isYourTurn={isYourTurn} onAddTo={beginAddTo} onMoveJoker={beginMoveJoker} onDropCardOnMeld={onDropCardOnMeld} />
           </div>
 
           <div className="turn-status">
@@ -1078,6 +1139,7 @@ function TeamBox({
   isYourTurn,
   onAddTo,
   onMoveJoker,
+  onDropCardOnMeld,
 }: {
   team: 'A' | 'B';
   match: Match;
@@ -1085,11 +1147,11 @@ function TeamBox({
   isYourTurn: boolean;
   onAddTo: (meld: Meld) => void;
   onMoveJoker: (meldId: string, jokerCardId: string) => void;
+  onDropCardOnMeld: (meld: Meld, cardId: string) => void;
 }) {
   const state = match.teams[team];
-  // Only YOU can edit YOUR team's box during YOUR own turn — partners can't
-  // reach across to touch each other's melds.
   const canAct = isYourTurn && TEAM_OF[viewingSeat] === team && match.turnPhase === 'may-meld';
+  const [hoveredMeld, setHoveredMeld] = useState<string | null>(null);
   return (
     <div className={`team-box team-box-${team.toLowerCase()}`}>
       <div className="team-box-header">
@@ -1100,7 +1162,18 @@ function TeamBox({
       </div>
       {state.sequenceBox.length === 0 && <div className="empty-melds">No melds yet</div>}
       {state.sequenceBox.map((m) => (
-        <div key={m.id} className={`meld-strip ${isPure(m) ? 'pure' : 'impure'}`}>
+        <div
+          key={m.id}
+          className={`meld-strip ${isPure(m) ? 'pure' : 'impure'} ${hoveredMeld === m.id ? 'drop-target' : ''}`}
+          onDragOver={canAct ? (e) => { e.preventDefault(); setHoveredMeld(m.id); } : undefined}
+          onDragLeave={canAct ? () => setHoveredMeld(null) : undefined}
+          onDrop={canAct ? (e) => {
+            e.preventDefault();
+            setHoveredMeld(null);
+            const cardId = e.dataTransfer.getData('text/plain');
+            if (cardId) onDropCardOnMeld(m, cardId);
+          } : undefined}
+        >
           <div className="meld-strip-label">
             {m.kind === 'sequence' ? `Seq ${suitGlyph(m.suit)}` : `Trip ${rankLabel(m.rank)}`} · {meldCardTotal(m)}pt
             {meldSizeBonus(m) > 0 && <span className="bonus"> +{meldSizeBonus(m)}</span>}
