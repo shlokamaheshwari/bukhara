@@ -25,7 +25,7 @@ import { endMatchAndAdvance } from '../game/matchEnd';
 import { isPure } from '../game/melds';
 import { meldCardTotal, meldSizeBonus, scoreBreakdown } from '../game/scoring';
 import { CardFace, StackedCards } from '../ui/Card';
-import { autoSolveAdd } from '../game/autoSolve';
+import { autoSolveAdd, autoSolveDropSequence, autoSolveDropTriplet } from '../game/autoSolve';
 import type { MoveMessage } from '../net/messages';
 import '../ui/Card.css';
 import '../App.css';
@@ -164,11 +164,35 @@ export default function GameScreen(props: GameScreenProps = {}) {
   }
   function onStartDropSequence() {
     if (selected.size < 3) return setError('Select at least 3 cards');
-    setMeldModal({ kind: 'drop-sequence', cardIds: [...selected] });
+    const cardIds = [...selected];
+    const cards = cardIds
+      .map((id) => viewingPlayer.hand.find((c) => c.id === id))
+      .filter((c): c is Card => !!c);
+    const solved = autoSolveDropSequence(cards);
+    if (solved.kind === 'sequence') {
+      // Unambiguous — drop directly.
+      const input = { kind: 'sequence' as const, cards: solved.cards };
+      if (isMP) netSend!({ type: 'move-drop-meld', input });
+      else apply(dropMeld(match, input));
+      return;
+    }
+    // Ambiguous or unclear — fall back to the manual picker.
+    setMeldModal({ kind: 'drop-sequence', cardIds });
   }
   function onStartDropTriplet() {
     if (selected.size < 3) return setError('Select at least 3 cards');
-    setMeldModal({ kind: 'drop-triplet', cardIds: [...selected] });
+    const cardIds = [...selected];
+    const cards = cardIds
+      .map((id) => viewingPlayer.hand.find((c) => c.id === id))
+      .filter((c): c is Card => !!c);
+    const solved = autoSolveDropTriplet(cards);
+    if (solved.kind === 'triplet') {
+      const input = { kind: 'triplet' as const, cards: solved.cards };
+      if (isMP) netSend!({ type: 'move-drop-meld', input });
+      else apply(dropMeld(match, input));
+      return;
+    }
+    setMeldModal({ kind: 'drop-triplet', cardIds });
   }
   function onDiscard() {
     if (selected.size !== 1) return setError('Select exactly one card to discard');

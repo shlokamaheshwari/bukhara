@@ -33,6 +33,91 @@ export function autoSolveAdd(card: Card, meld: Meld): AutoSolveResult {
   return solveSequence(card, meld);
 }
 
+// Result of trying to auto-solve a "drop new meld" from a set of hand cards.
+export type AutoSolveDropResult =
+  | { kind: 'sequence'; cards: SequenceMeldCard[] }
+  | { kind: 'triplet'; cards: TripletMeldCard[] }
+  | { kind: 'ambiguous' }
+  | { kind: 'no-fit' };
+
+// Given the raw cards the user picked for a new sequence, try to figure out
+// the intent without asking. Handles the common case: 3+ same-suit cards with
+// contiguous natural ranks (no jokers in play). Anything with 2s-as-jokers or
+// gaps returns "ambiguous" and the modal handles it.
+export function autoSolveDropSequence(cards: Card[]): AutoSolveDropResult {
+  if (cards.length < 3) return { kind: 'no-fit' };
+  // All same suit? If not, we can't figure it out (2s might be jokers).
+  const suit = cards[0].suit;
+  const allSameSuit = cards.every((c) => c.suit === suit);
+  if (!allSameSuit) return { kind: 'ambiguous' };
+
+  // No 2s (2s are always ambiguous — could be natural or joker).
+  const hasTwo = cards.some((c) => c.rank === JOKER_RANK);
+  if (hasTwo) return { kind: 'ambiguous' };
+
+  // Sort by rank, treat Ace (1) as high only if the rest are K-topped.
+  const ranks = cards.map((c) => c.rank).sort((a, b) => a - b);
+  const hasAce = ranks[0] === 1;
+  const rest = hasAce ? ranks.slice(1) : ranks;
+
+  // Are the non-Ace ranks strictly contiguous?
+  for (let i = 1; i < rest.length; i++) {
+    if (rest[i] !== rest[i - 1] + 1) return { kind: 'ambiguous' };
+  }
+
+  // With no 2s in play, an Ace can only be natural-low if the next rank is 2 —
+  // which we filtered out. So Ace here must be K-topped (Ace-high) or invalid.
+  let aceHigh = false;
+  if (hasAce) {
+    if (rest[rest.length - 1] !== 13) return { kind: 'no-fit' };
+    aceHigh = true;
+  }
+
+  // Build the meld cards. Preserve the input order — user's drag order.
+  const originalOrder = [...cards].sort((a, b) => {
+    const aPos = a.rank === 1 && aceHigh ? 14 : a.rank;
+    const bPos = b.rank === 1 && aceHigh ? 14 : b.rank;
+    return aPos - bPos;
+  });
+  const result: SequenceMeldCard[] = originalOrder.map((c) => ({
+    card: c,
+    actingAs: (c.rank === 1 && aceHigh ? 14 : c.rank) as SeqPos,
+    isJoker: false,
+  }));
+  return { kind: 'sequence', cards: result };
+}
+
+// Given raw cards for a new triplet, figure out the intent. A clean triplet
+// is 3+ cards of the same rank, optionally with one 2 acting as a joker.
+export function autoSolveDropTriplet(cards: Card[]): AutoSolveDropResult {
+  if (cards.length < 3) return { kind: 'no-fit' };
+
+  // Find the majority rank.
+  const rankCounts = new Map<number, number>();
+  for (const c of cards) rankCounts.set(c.rank, (rankCounts.get(c.rank) ?? 0) + 1);
+  const nonTwoRanks = [...rankCounts.entries()].filter(([r]) => r !== JOKER_RANK);
+  if (nonTwoRanks.length !== 1) {
+    // Either zero non-2s (all 2s → that's a triplet of 2s, fine) or multiple ranks.
+    if (nonTwoRanks.length === 0 && (rankCounts.get(JOKER_RANK) ?? 0) === cards.length) {
+      // All 2s: natural triplet of 2s.
+      const result: TripletMeldCard[] = cards.map((c) => ({ card: c, isJoker: false }));
+      return { kind: 'triplet', cards: result };
+    }
+    return { kind: 'ambiguous' };
+  }
+
+  const [naturalRank] = nonTwoRanks[0];
+  const twoCount = rankCounts.get(JOKER_RANK) ?? 0;
+  // A triplet can have at most one joker.
+  if (twoCount > 1) return { kind: 'ambiguous' };
+
+  const result: TripletMeldCard[] = cards.map((c) => ({
+    card: c,
+    isJoker: c.rank === JOKER_RANK && naturalRank !== JOKER_RANK,
+  }));
+  return { kind: 'triplet', cards: result };
+}
+
 function solveTriplet(card: Card, meld: Extract<Meld, { kind: 'triplet' }>): AutoSolveResult {
   const rank = meld.rank;
   const alreadyHasJoker = meld.cards.some((c) => c.isJoker);
