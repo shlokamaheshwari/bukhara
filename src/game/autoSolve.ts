@@ -41,50 +41,84 @@ export type AutoSolveDropResult =
   | { kind: 'no-fit' };
 
 // Given the raw cards the user picked for a new sequence, try to figure out
-// the intent without asking. Handles the common case: 3+ same-suit cards with
-// contiguous natural ranks (no jokers in play). Anything with 2s-as-jokers or
-// gaps returns "ambiguous" and the modal handles it.
+// the intent. Handles jokers (2s) filling gaps and Ace-high vs Ace-low —
+// as long as exactly one interpretation is consistent. Falls back to
+// "ambiguous" if two configurations are both legal.
 export function autoSolveDropSequence(cards: Card[]): AutoSolveDropResult {
   if (cards.length < 3) return { kind: 'no-fit' };
-  // All same suit? If not, we can't figure it out (2s might be jokers).
-  const suit = cards[0].suit;
-  const allSameSuit = cards.every((c) => c.suit === suit);
-  if (!allSameSuit) return { kind: 'ambiguous' };
 
-  // No 2s (2s are always ambiguous — could be natural or joker).
-  const hasTwo = cards.some((c) => c.rank === JOKER_RANK);
-  if (hasTwo) return { kind: 'ambiguous' };
+  // Split into potential naturals (non-2s) and potential jokers (2s).
+  const naturals = cards.filter((c) => c.rank !== JOKER_RANK);
+  const twos = cards.filter((c) => c.rank === JOKER_RANK);
 
-  // Sort by rank, treat Ace (1) as high only if the rest are K-topped.
-  const ranks = cards.map((c) => c.rank).sort((a, b) => a - b);
-  const hasAce = ranks[0] === 1;
-  const rest = hasAce ? ranks.slice(1) : ranks;
+  // Need at least one natural to fix the suit.
+  if (naturals.length === 0) return { kind: 'ambiguous' };
 
-  // Are the non-Ace ranks strictly contiguous?
-  for (let i = 1; i < rest.length; i++) {
-    if (rest[i] !== rest[i - 1] + 1) return { kind: 'ambiguous' };
+  // All naturals must share a suit; that suit is the meld's suit.
+  const suit = naturals[0].suit;
+  if (!naturals.every((c) => c.suit === suit)) return { kind: 'ambiguous' };
+
+  // Try every plausible placement for the Ace (if any) and every valid start
+  // offset for the sequence. Collect all consistent configurations.
+  const configs: SequenceMeldCard[][] = [];
+  const hasAce = naturals.some((c) => c.rank === 1);
+  const aceOptions = hasAce ? [1, 14] : [null];
+
+  for (const aceAs of aceOptions) {
+    // Positions used by natural cards (with Ace mapped per aceAs).
+    const naturalPositions = naturals.map((c) => (c.rank === 1 ? (aceAs as number) : c.rank));
+    // Any duplicate natural positions → impossible.
+    if (new Set(naturalPositions).size !== naturalPositions.length) continue;
+    naturalPositions.sort((a, b) => a - b);
+    const size = cards.length;
+    const minNat = naturalPositions[0];
+    const maxNat = naturalPositions[naturalPositions.length - 1];
+
+    // The meld spans size consecutive slots [start, start+size-1] with all
+    // natural positions inside. Bounds on start:
+    const startLow = Math.max(1, maxNat - size + 1);
+    const startHigh = Math.min(minNat, 15 - size);
+    for (let start = startLow; start <= startHigh; start++) {
+      const end = start + size - 1;
+      const slots = new Set<number>();
+      for (let s = start; s <= end; s++) slots.add(s);
+      // Every natural must land in a slot.
+      if (!naturalPositions.every((p) => slots.has(p))) continue;
+      // Gaps = slots minus naturals; jokers must exactly fill them.
+      const gaps: number[] = [];
+      for (let s = start; s <= end; s++) {
+        if (!naturalPositions.includes(s)) gaps.push(s);
+      }
+      if (gaps.length !== twos.length) continue;
+
+      // Build the meld cards, sorted by slot.
+      const meldCards: SequenceMeldCard[] = [];
+      // Naturals
+      for (const c of naturals) {
+        const pos = c.rank === 1 ? (aceAs as number) : c.rank;
+        meldCards.push({ card: c, actingAs: pos as SeqPos, isJoker: false });
+      }
+      // Twos filling gaps. A 2 of the meld's suit dropped into slot 2 is
+      // natural (pure); anything else counts as a joker (impure).
+      const twoQueue = [...twos];
+      for (const g of gaps) {
+        const two = twoQueue.shift()!;
+        const isNaturalTwo = g === 2 && two.suit === suit;
+        meldCards.push({ card: two, actingAs: g as SeqPos, isJoker: !isNaturalTwo });
+      }
+      meldCards.sort((a, b) => a.actingAs - b.actingAs);
+      configs.push(meldCards);
+    }
   }
 
-  // With no 2s in play, an Ace can only be natural-low if the next rank is 2 —
-  // which we filtered out. So Ace here must be K-topped (Ace-high) or invalid.
-  let aceHigh = false;
-  if (hasAce) {
-    if (rest[rest.length - 1] !== 13) return { kind: 'no-fit' };
-    aceHigh = true;
-  }
-
-  // Build the meld cards. Preserve the input order — user's drag order.
-  const originalOrder = [...cards].sort((a, b) => {
-    const aPos = a.rank === 1 && aceHigh ? 14 : a.rank;
-    const bPos = b.rank === 1 && aceHigh ? 14 : b.rank;
-    return aPos - bPos;
-  });
-  const result: SequenceMeldCard[] = originalOrder.map((c) => ({
-    card: c,
-    actingAs: (c.rank === 1 && aceHigh ? 14 : c.rank) as SeqPos,
-    isJoker: false,
-  }));
-  return { kind: 'sequence', cards: result };
+  if (configs.length === 0) return { kind: 'no-fit' };
+  // Prefer configurations with the fewest jokers (purest sequence). If
+  // multiple configs tie for the min, the intent is genuinely ambiguous.
+  const jokerCount = (m: SequenceMeldCard[]) => m.filter((c) => c.isJoker).length;
+  const minJokers = Math.min(...configs.map(jokerCount));
+  const best = configs.filter((m) => jokerCount(m) === minJokers);
+  if (best.length > 1) return { kind: 'ambiguous' };
+  return { kind: 'sequence', cards: best[0] };
 }
 
 // Given raw cards for a new triplet, figure out the intent. A clean triplet
