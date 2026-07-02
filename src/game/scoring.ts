@@ -16,13 +16,15 @@ export function meldCardTotal(meld: Meld): number {
 }
 
 // Size bonuses — the largest tier that applies wins (bonuses do NOT stack).
-//   ≥ 13 cards → 500 (full-length "ganastha")
-//   ≥ 7  cards → 200 pure / 100 impure (standard 7-card bonus)
+//   ≥ 13 cards & pure  → 500 (full-length "ganastha")
+//   ≥ 7  cards & pure  → 200
+//   ≥ 7  cards & impure → 100
 //   otherwise → 0
 export function meldSizeBonus(meld: Meld): number {
   const n = meld.cards.length;
-  if (n >= 13) return 500;
-  if (n >= 7) return isPure(meld) ? 200 : 100;
+  const pure = isPure(meld);
+  if (n >= 13 && pure) return 500;
+  if (n >= 7) return pure ? 200 : 100;
   return 0;
 }
 
