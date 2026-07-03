@@ -460,8 +460,11 @@ describe('discard and turn flow', () => {
 });
 
 describe('1000+ rule', () => {
-  it('team past 1000 needs its first-drop turn to sum ≥100', () => {
-    // Team A has crossed 1000. Player 0 drops a low-value pure sequence and tries to discard.
+  it('team past 1000: failing to reach 100 rescues the turn with -200 penalty', () => {
+    // Team A has crossed 1000. Player 0 drops a low-value pure sequence and
+    // tries to discard. Instead of a deadlock, the discard succeeds with a
+    // rescue: cards go back to the hand, sequence box is cleared of this
+    // turn's drops, team takes a -200 midMatchPenalty, and the turn ends.
     let m = newMatch({
       matchNumber: 2,
       startingPlayer: 0,
@@ -470,7 +473,6 @@ describe('1000+ rule', () => {
       seed: 5,
     });
     m = { ...m, turnPhase: 'may-meld' };
-    // Small pure sequence: 3-4-5 hearts (5+5+5=15). Discard should be rejected.
     m = withHand(m, 0, [H(3), H(4), H(5), H(7)]);
     let step = dropMeld(m, {
       kind: 'sequence',
@@ -478,8 +480,22 @@ describe('1000+ rule', () => {
     });
     if (!step.ok) throw new Error(step.reason);
     const r = discard(step.match, 'H7a');
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toMatch(/100/);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      // Discarded card is gone, all meld cards are back in the seat's hand.
+      const seat0 = ([0, 1, 2, 3] as const).find(
+        (p) => r.match.players[p].name === 'P1',
+      )!;
+      const hand = r.match.players[seat0].hand;
+      expect(hand.some((c) => c.id === 'H3a')).toBe(true);
+      expect(hand.some((c) => c.id === 'H4a')).toBe(true);
+      expect(hand.some((c) => c.id === 'H5a')).toBe(true);
+      expect(hand.some((c) => c.id === 'H7a')).toBe(false);
+      // Team box is empty again; penalty registered.
+      expect(r.match.teams.A.sequenceBox).toHaveLength(0);
+      expect(r.match.teams.A.midMatchPenalty).toBe(200);
+      expect(r.match.teams.A.firstDropDone).toBe(false);
+    }
   });
 
   it('team past 1000: first-drop turn totaling ≥100 is allowed', () => {

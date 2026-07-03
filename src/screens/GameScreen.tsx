@@ -93,6 +93,9 @@ export default function GameScreen(props: GameScreenProps = {}) {
   const [dismissedMatchEnd, setDismissedMatchEnd] = useState<number | null>(null);
   // Show a floating banner when someone picks up the bhukara.
   const [bhukaraAnnouncement, setBhukaraAnnouncement] = useState<string | null>(null);
+  // Show a floating banner when a team incurs a -200 first-drop penalty.
+  const [penaltyAnnouncement, setPenaltyAnnouncement] =
+    useState<{ team: 'A' | 'B'; total: number } | null>(null);
 
   const match = game.currentMatch;
   // Whose "view" is at the bottom of the table:
@@ -126,6 +129,23 @@ export default function GameScreen(props: GameScreenProps = {}) {
       setReveal({ revealedFor: null });
     }
   }
+
+  // Detect an increase in either team's midMatchPenalty and flash a banner
+  // announcing the -200. Uses a ref of the last-known penalty per team.
+  const prevPenalty = useRef<Record<'A' | 'B', number>>({ A: 0, B: 0 });
+  useEffect(() => {
+    for (const t of ['A', 'B'] as const) {
+      const now = match.teams[t].midMatchPenalty;
+      const prev = prevPenalty.current[t];
+      if (now > prev) {
+        setPenaltyAnnouncement({ team: t, total: now });
+        const timer = setTimeout(() => setPenaltyAnnouncement(null), 4500);
+        prevPenalty.current[t] = now;
+        return () => clearTimeout(timer);
+      }
+      prevPenalty.current[t] = now;
+    }
+  }, [match.teams.A.midMatchPenalty, match.teams.B.midMatchPenalty]);
 
   // Detect a fresh bhukara pickup — show the announcement modal once per pickup.
   // The `seen` set holds match numbers we've already shown so the modal doesn't
@@ -496,6 +516,16 @@ export default function GameScreen(props: GameScreenProps = {}) {
         </div>
       )}
 
+      {penaltyAnnouncement && (
+        <div className="announcement-banner penalty-banner">
+          <div className="announcement-emoji">⚠</div>
+          <div className="announcement-text">
+            Team {penaltyAnnouncement.team} — first drop couldn't reach 100. Cards
+            returned to hand, <strong>−200 penalty</strong> applied.
+          </div>
+        </div>
+      )}
+
       {matchOver && dismissedMatchEnd !== match.matchNumber && (
         <MatchEndModal
           game={game}
@@ -542,6 +572,7 @@ function MatchEndModal({
       bhukaraPicked: bhukaraTeam === t,
       closedMatch: closerTeam === t,
       ownHeldCardValues: heldByTeam[t],
+      midMatchPenalty: match.teams[t].midMatchPenalty,
     });
     return { team: t, ...b };
   };
@@ -581,6 +612,7 @@ function MatchEndModal({
                 <th>Bukhara</th>
                 <th>Closing</th>
                 <th>Held (−)</th>
+                <th>Penalty (−)</th>
                 <th>This match</th>
                 <th>Running total</th>
               </tr>
@@ -594,6 +626,7 @@ function MatchEndModal({
                   <td>{rows[t].bhukaraBonus}</td>
                   <td>{rows[t].closingBonus}</td>
                   <td>−{rows[t].heldPenalty}</td>
+                  <td>{rows[t].midMatchPenalty > 0 ? `−${rows[t].midMatchPenalty}` : '—'}</td>
                   <td className={rows[t].total >= 0 ? 'pos' : 'neg'}>{rows[t].total >= 0 ? '+' : ''}{rows[t].total}</td>
                   <td className="running">{totalsAfter[t]}</td>
                 </tr>

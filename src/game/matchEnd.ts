@@ -35,6 +35,7 @@ export function scoreFinishedMatch(match: Match): MatchScoring {
       bhukaraPicked: bhukaraTeam === t,
       closedMatch: closerTeam === t,
       ownHeldCardValues: heldByTeam[t],
+      midMatchPenalty: match.teams[t].midMatchPenalty,
     });
   }
 

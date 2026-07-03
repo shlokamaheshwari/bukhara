@@ -349,40 +349,63 @@ export function discard(match: Match, cardId: string): MoveResult {
   const card = player.hand.find((c) => c.id === cardId);
   if (!card) return { ok: false, reason: 'That card is not in your hand' };
 
-  // First-drop-this-turn validation
+  // First-drop-this-turn validation.
+  //
+  // Two constraints apply on the turn a team's first drop happens:
+  //   (a) the melds dropped this turn must include at least one pure sequence
+  //   (b) if the team is past 1000, the total value must be >=100
+  //
+  // If either constraint fails, the discard doesn't reject (deadlock). Instead
+  // we RESCUE the turn: every meld created this turn is undone (cards go back
+  // to the player's hand) and the team takes a -200 penalty added to the
+  // match score. The player still discards, the turn still ends. The mistake
+  // has a cost but the game keeps moving.
   const firstDropThisTurn =
     !team.firstDropDone && match.meldsCreatedThisTurn.length > 0;
+  let rescueApplied = false;
+  let rescuedCards: Card[] = [];
+  let workingTeam = team;
+  let workingHand = player.hand;
   if (firstDropThisTurn) {
     const meldsThisTurn = team.sequenceBox.filter((m) =>
       match.meldsCreatedThisTurn.includes(m.id),
     );
-    // Must include at least one pure sequence (base rule)
-    if (!meldsThisTurn.some((m) => isPureSequence(m))) {
-      return { ok: false, reason: "First drop must include a pure sequence — pick it up or add one" };
-    }
-    // 1000+ rule: sum of card values across all melds dropped this turn ≥ 100
-    if (team.mustFirstDropReach100) {
-      const total = meldsThisTurn.reduce((s, m) => s + meldCardTotal(m), 0);
-      if (total < 100) {
-        return { ok: false, reason: `Team is past 1000 — first drop must total ≥100 (currently ${total})` };
+    const hasPure = meldsThisTurn.some((m) => isPureSequence(m));
+    const totalThisTurn = meldsThisTurn.reduce((s, m) => s + meldCardTotal(m), 0);
+    const under100 = team.mustFirstDropReach100 && totalThisTurn < 100;
+    if (!hasPure || under100) {
+      rescueApplied = true;
+      // Pull every card out of every meld dropped this turn, back into the
+      // player's hand. Remove those melds from the sequenceBox.
+      for (const m of meldsThisTurn) {
+        for (const mc of m.cards) rescuedCards.push(mc.card);
+      }
+      workingHand = [...player.hand, ...rescuedCards];
+      const rescuedBox = team.sequenceBox.filter(
+        (m) => !match.meldsCreatedThisTurn.includes(m.id),
+      );
+      workingTeam = {
+        ...team,
+        sequenceBox: rescuedBox,
+        midMatchPenalty: team.midMatchPenalty + 200,
+      };
+      // Verify the discard card is still available after the rescue.
+      if (!workingHand.some((c) => c.id === cardId)) {
+        return { ok: false, reason: 'That card is not in your hand' };
       }
     }
   }
 
-  // Rule: cannot discard the last card if you dropped everything else — you must
-  // have at least one card to throw at the end of your turn. Since we're about
-  // to remove `card` from hand, that already leaves 0 or more; check the pre-state.
-  // (If hand length is 1 and we're discarding, hand becomes 0 — that's how bhukara
-  // pickup/closing is triggered, which is legal.)
-
   // Perform the discard.
-  const newHand = player.hand.filter((c) => c.id !== cardId);
+  const newHand = workingHand.filter((c) => c.id !== cardId);
   const newDiscard = [...match.discard, card];
 
-  // Commit team first-drop if we validated one this turn.
-  const teamAfterCommit = firstDropThisTurn
-    ? { ...team, firstDropDone: true, firstDropByPlayer: player.id }
-    : team;
+  // Commit team first-drop if we validated one this turn (no rescue path).
+  const teamAfterCommit = rescueApplied
+    ? workingTeam
+    : firstDropThisTurn
+    ? { ...workingTeam, firstDropDone: true, firstDropByPlayer: player.id }
+    : workingTeam;
 
   let next: Match = {
     ...match,

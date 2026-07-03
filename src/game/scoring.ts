@@ -37,6 +37,7 @@ export type MatchScoreInputs = {
   bhukaraPicked: boolean;
   closedMatch: boolean;
   ownHeldCardValues: number; // sum of card values still in this team's hands
+  midMatchPenalty: number;   // -200 penalties incurred this match
 };
 
 // Structured breakdown so a scoreboard can show *why* the score is what it is.
@@ -46,6 +47,7 @@ export type MatchScoreBreakdown = {
   bhukaraBonus: number;
   closingBonus: number;
   heldPenalty: number; // subtracted
+  midMatchPenalty: number; // subtracted
   total: number;
 };
 
@@ -55,13 +57,17 @@ export function scoreBreakdown(inp: MatchScoreInputs): MatchScoreBreakdown {
   const bhukaraBonus = inp.bhukaraPicked ? 50 : 0;
   const closingBonus = inp.closedMatch ? 50 : 0;
   const heldPenalty = inp.ownHeldCardValues;
+  const midMatchPenalty = inp.midMatchPenalty;
   return {
     meldCards,
     sizeBonuses,
     bhukaraBonus,
     closingBonus,
     heldPenalty,
-    total: meldCards + sizeBonuses + bhukaraBonus + closingBonus - heldPenalty,
+    midMatchPenalty,
+    total:
+      meldCards + sizeBonuses + bhukaraBonus + closingBonus -
+      heldPenalty - midMatchPenalty,
   };
 }
 

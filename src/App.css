@@ -303,6 +303,15 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
     0 0 24px rgba(227, 106, 76, 0.35);
   animation: announcementSlide 4s ease-in-out forwards;
 }
+.announcement-banner.penalty-banner {
+  border-color: var(--danger);
+  box-shadow:
+    inset 0 1px 0 var(--panel-highlight),
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    0 0 32px rgba(178, 27, 27, 0.4);
+  animation: announcementSlide 4.5s ease-in-out forwards;
+}
+.penalty-banner .announcement-emoji { color: var(--danger); }
 .announcement-emoji { font-size: 24px; }
 .announcement-text {
   font-family: 'Fraunces', serif;
