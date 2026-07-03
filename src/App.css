@@ -2263,46 +2263,91 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   background: linear-gradient(180deg, rgba(178, 27, 27, 0.14), rgba(178, 27, 27, 0.06));
 }
 
-/* --- Playing cards: gold hairline, dragon-scale corner, molten pips --- */
-[data-theme^="hotd"] .pc {
-  --pc-face: var(--card-face);
-  border: 1px solid rgba(201, 163, 78, 0.55);
+/* --- Playing cards: aged parchment + double gold rim + Cinzel rank --- */
+[data-theme^="hotd"] .pc:not(.pc-back) {
+  background: linear-gradient(135deg, #FBF6E3 0%, #E9DFC0 100%);
+  border: 1px solid rgba(120, 90, 24, 0.5);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 240, 200, 0.35),
-    inset 0 0 12px rgba(201, 163, 78, 0.12),
+    inset 0 0 0 1px rgba(255, 240, 200, 0.4),
+    inset 0 0 22px rgba(201, 163, 78, 0.10),
     0 6px 22px rgba(0, 0, 0, 0.42);
   font-family: 'Cinzel', 'Trajan Pro', 'Copperplate', Georgia, serif;
   font-weight: 500;
 }
-[data-theme^="hotd"] .pc-red { color: #B21B1B; }
-[data-theme^="hotd"] .pc-black { color: #14110F; }
-[data-theme="hotd-dark"] .pc-red { color: #C93030; }
-/* Corner ornament — small gold triangle in the top-right */
+[data-theme="hotd-dark"] .pc:not(.pc-back) {
+  background: linear-gradient(135deg, #F5EED9 0%, #DCCFA8 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 240, 200, 0.4),
+    inset 0 0 22px rgba(201, 163, 78, 0.15),
+    0 6px 30px rgba(0, 0, 0, 0.6),
+    0 0 12px rgba(201, 163, 78, 0.18);
+}
+/* Replace the halftone with a subtle aged-paper micro-dot texture */
+[data-theme^="hotd"] .pc:not(.pc-back)::before {
+  background-image:
+    radial-gradient(circle at 3px 3px, rgba(120, 90, 24, 0.08) 0.6px, transparent 1px);
+  background-size: 6px 6px;
+  opacity: 0.75;
+}
+/* Inner gold hairline — the "double rim" that reads as inscribed metal */
 [data-theme^="hotd"] .pc:not(.pc-back)::after {
   content: '';
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 10px;
-  height: 10px;
-  background: linear-gradient(135deg, transparent 50%, var(--gold-mid, #C9A34E) 50%);
-  opacity: 0.55;
-  border-radius: 1px;
+  inset: 3px;
+  border: 1px solid rgba(201, 163, 78, 0.45);
+  border-radius: 6px;
   pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 244, 200, 0.18);
 }
+[data-theme^="hotd"] .pc-sm:not(.pc-back)::after { inset: 2px; border-radius: 3px; }
+[data-theme^="hotd"] .pc-lg:not(.pc-back)::after { inset: 4px; border-radius: 8px; }
+
+/* Suit colours: molten red vs deep ink */
+[data-theme^="hotd"] .pc-red { color: #A80D0D; }
+[data-theme^="hotd"] .pc-black { color: #14110F; }
+[data-theme="hotd-dark"] .pc-red { color: #B21B1B; }
+
+/* Rank corners in Cinzel */
+[data-theme^="hotd"] .pc-rank {
+  font-family: 'Cinzel', 'Trajan Pro', 'Copperplate', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Larger center pip with subtle warm drop shadow — reads as embossed */
+[data-theme^="hotd"] .pc-center {
+  font-size: 44px;
+  text-shadow: 0 3px 8px rgba(120, 60, 20, 0.18);
+}
+[data-theme^="hotd"] .pc-sm .pc-center { font-size: 26px; }
+[data-theme^="hotd"] .pc-lg .pc-center { font-size: 60px; }
+
+/* Selected: replace the default lift shadow with a real gold glow */
 [data-theme^="hotd"] .pc-selected {
   border-color: var(--gold-highlight, #F1D68A);
   box-shadow:
     inset 0 0 0 1px rgba(255, 240, 200, 0.6),
-    0 0 24px rgba(201, 163, 78, 0.5),
+    0 0 32px rgba(201, 163, 78, 0.55),
     0 6px 22px rgba(0, 0, 0, 0.5);
 }
-/* Card back: obsidian with a molten radial + gold border */
+
+/* Card back: obsidian with a molten radial + gold rim */
 [data-theme^="hotd"] .pc-back {
   background:
-    radial-gradient(circle at 50% 50%, rgba(178, 27, 27, 0.5), transparent 65%),
+    radial-gradient(circle at 50% 50%, rgba(178, 27, 27, 0.55), transparent 65%),
     linear-gradient(135deg, #0A0908 0%, #241614 100%);
   border: 1px solid rgba(201, 163, 78, 0.4);
+  box-shadow:
+    inset 0 0 0 2px rgba(201, 163, 78, 0.12),
+    0 6px 22px rgba(0, 0, 0, 0.5);
+}
+[data-theme^="hotd"] .pc-back::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(201, 163, 78, 0.32);
+  border-radius: 5px;
+  pointer-events: none;
 }
 
 /* --- Turn status: gold-inscribed banner with soft glow --- */
