@@ -46,7 +46,17 @@ export type ReactionMessage = {
   at: number; // server timestamp so clients can dedupe / order
 };
 
-export type ServerMessage = RoomStateMessage | GameStateMessage | MoveRejectedMessage | ReactionMessage;
+export type ChatMessage = {
+  type: 'chat-message';
+  id: string;
+  text: string;
+  fromUsername: string;
+  fromDisplayName: string;
+  fromSeat: 0 | 1 | 2 | 3 | null;
+  at: number;
+};
+
+export type ServerMessage = RoomStateMessage | GameStateMessage | MoveRejectedMessage | ReactionMessage | ChatMessage;
 
 // ---- Client → server ---------------------------------------------------
 
@@ -58,7 +68,8 @@ export type LobbyMessage =
   | { type: 'start-game' }
   | { type: 'add-bot'; seatIdx: 0 | 1 | 2 | 3 }
   | { type: 'remove-bot'; seatIdx: 0 | 1 | 2 | 3 }
-  | { type: 'react'; emoji: string };
+  | { type: 'react'; emoji: string }
+  | { type: 'chat'; text: string };
 
 export type MoveMessage =
   | { type: 'move-draw-stock' }

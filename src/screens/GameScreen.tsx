@@ -327,6 +327,23 @@ export default function GameScreen(props: GameScreenProps = {}) {
               Taken by {match.players[match.bhukaraTakenBy].name}
             </div>
           )}
+          {/* Live meld totals — cards + size bonuses, no held-card penalty. */}
+          <div className="meld-tally">
+            <div className="meld-tally-title">Meld totals</div>
+            {(['A', 'B'] as const).map((t) => {
+              const box = match.teams[t].sequenceBox;
+              const points = box.reduce(
+                (s, m) => s + meldCardTotal(m) + meldSizeBonus(m),
+                0,
+              );
+              return (
+                <div key={t} className={`meld-tally-row team-${t.toLowerCase()}`}>
+                  <span className="meld-tally-team">Team {t}</span>
+                  <span className="meld-tally-pts">{points}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
         {/* Seats rotate so the current player is always at the bottom.
             Clockwise order from bottom: bottom → right → top → left. */}
@@ -361,7 +378,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
         <div className="table-center">
           <div className="piles">
             <div className="pile">
-              <div className="pile-label">Draw pile ({match.stock.length})</div>
+              <div className="pile-label">Deck ({match.stock.length})</div>
               <StackedCards count={match.stock.length} />
             </div>
             <div
@@ -749,7 +766,7 @@ function ActionsToolbar({
       <div className="toolbar-group">
         <span className="toolbar-label">Draw</span>
         <button className="tb-btn" onClick={onDraw} disabled={!canDraw}>
-          <span className="tb-icon">↓</span> Stock ({match.stock.length})
+          <span className="tb-icon">↓</span> Deck ({match.stock.length})
         </button>
         <button className="tb-btn" onClick={onPickDiscard} disabled={!canPick}>
           <span className="tb-icon">↩</span> Discard ({match.discard.length})

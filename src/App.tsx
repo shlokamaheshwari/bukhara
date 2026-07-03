@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import AuthScreen from './screens/AuthScreen';
 import LandingScreen from './screens/LandingScreen';
 import RoomLobby from './screens/RoomLobby';
@@ -67,6 +67,11 @@ export default function App() {
   const [reactions, setReactions] = useState<
     Array<{ id: number; emoji: string; from: string; seat: number | null }>
   >([]);
+  const [chatLog, setChatLog] = useState<
+    Array<{ id: string; text: string; from: string; seat: number | null; at: number; mine: boolean }>
+  >([]);
+  const [chatUnread, setChatUnread] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
   const sendRef = useRef<((msg: ClientMessage) => void) | null>(null);
 
   // Verify a saved token on first load.
@@ -106,6 +111,18 @@ export default function App() {
         setReactions((r) => [...r, { id, emoji: msg.emoji, from: msg.fromDisplayName, seat: msg.fromSeat }]);
         // Auto-expire after 3s so the layer stays clean.
         setTimeout(() => setReactions((r) => r.filter((x) => x.id !== id)), 3000);
+      }
+      else if (msg.type === 'chat-message') {
+        const mine = auth ? msg.fromUsername === auth.username : false;
+        setChatLog((log) => [...log.slice(-99), {
+          id: msg.id,
+          text: msg.text,
+          from: msg.fromDisplayName,
+          seat: msg.fromSeat,
+          at: msg.at,
+          mine,
+        }]);
+        if (!mine) setChatUnread((n) => n + 1);
       }
     });
     sendRef.current = send;
@@ -150,7 +167,22 @@ export default function App() {
         ))}
       </div>
       {roomState && (
-        <ReactionBar send={send} />
+        <>
+          <ReactionBar send={send} />
+          <ChatPanel
+            send={send}
+            log={chatLog}
+            open={chatOpen}
+            unread={chatUnread}
+            onToggle={() => {
+              setChatOpen((v) => {
+                const next = !v;
+                if (next) setChatUnread(0);
+                return next;
+              });
+            }}
+          />
+        </>
       )}
     </>
   );
@@ -203,6 +235,78 @@ export default function App() {
         onExit={onLeaveRoom}
       />
     </>
+  );
+}
+
+function ChatPanel({
+  send, log, open, unread, onToggle,
+}: {
+  send: (msg: ClientMessage) => void;
+  log: Array<{ id: string; text: string; from: string; seat: number | null; at: number; mine: boolean }>;
+  open: boolean;
+  unread: number;
+  onToggle: () => void;
+}) {
+  const [draft, setDraft] = useState('');
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  // Autoscroll to the bottom whenever a new message arrives or the panel opens.
+  useEffect(() => {
+    if (!open || !listRef.current) return;
+    listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [open, log.length]);
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = draft.trim();
+    if (!text) return;
+    send({ type: 'chat', text });
+    setDraft('');
+  }
+
+  return (
+    <div className={`chat-panel ${open ? 'open' : ''}`}>
+      {open && (
+        <div className="chat-panel-inner">
+          <div className="chat-panel-header">
+            <span>Table chat</span>
+            <button type="button" className="chat-close" onClick={onToggle} aria-label="Close chat">×</button>
+          </div>
+          <div className="chat-log" ref={listRef}>
+            {log.length === 0 && <div className="chat-empty">No messages yet — say hi.</div>}
+            {log.map((m) => (
+              <div key={m.id} className={`chat-msg ${m.mine ? 'mine' : ''}`}>
+                {!m.mine && <div className="chat-from">{m.from}</div>}
+                <div className="chat-bubble">{m.text}</div>
+              </div>
+            ))}
+          </div>
+          <form className="chat-form" onSubmit={onSubmit}>
+            <input
+              type="text"
+              className="chat-input"
+              placeholder="Type a message…"
+              value={draft}
+              maxLength={500}
+              onChange={(e) => setDraft(e.target.value)}
+              autoComplete="off"
+              autoCapitalize="sentences"
+            />
+            <button type="submit" className="chat-send" disabled={!draft.trim()}>Send</button>
+          </form>
+        </div>
+      )}
+      <button
+        className="chat-toggle"
+        type="button"
+        onClick={onToggle}
+        aria-label={open ? 'Close chat' : 'Open chat'}
+        title={open ? 'Close chat' : 'Open chat'}
+      >
+        {open ? '×' : '💬'}
+        {!open && unread > 0 && <span className="chat-badge">{unread > 9 ? '9+' : unread}</span>}
+      </button>
+    </div>
   );
 }
 

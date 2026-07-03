@@ -231,6 +231,27 @@ export class RoomDO extends DurableObject<Env> {
         }
         return; // no broadcast, no persist
       }
+      case 'chat': {
+        // Ephemeral chat — echoed to every open socket, not persisted. Server
+        // clamps length so a runaway client can't spam huge payloads.
+        const text = String(data.text ?? '').slice(0, 500).trim();
+        if (!text) return;
+        const seat = presence.seatIdx as 0 | 1 | 2 | 3 | null;
+        const now = Date.now();
+        const id = `chat-${now}-${Math.random().toString(36).slice(2, 8)}`;
+        for (const ws of this.connections.values()) {
+          this.sendTo(ws, {
+            type: 'chat-message',
+            id,
+            text,
+            fromUsername: presence.username,
+            fromDisplayName: presence.displayName,
+            fromSeat: seat,
+            at: now,
+          });
+        }
+        return;
+      }
       default:
         this.handleMove(data as MoveMessage, senderId, presence);
         return;
