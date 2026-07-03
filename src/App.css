@@ -2592,7 +2592,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
    katakana chop mark `サクラノウタ` in the far-right margin.
    ============================================================= */
 [data-theme="sakura-light"] {
-  --bg-image: none;
+  --bg-image: url('/sakura-light.png');
   --text-primary: #3B0F1E;
   --text-dim:     rgba(59, 15, 30, 0.72);
   --text-faint:   rgba(59, 15, 30, 0.50);
@@ -2615,7 +2615,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   --success:      #6A82A5;
 }
 [data-theme="sakura-dark"] {
-  --bg-image: none;
+  --bg-image: url('/sakura-dark.png');
   --text-primary: #F5E5EC;
   --text-dim:     rgba(245, 229, 236, 0.78);
   --text-faint:   rgba(245, 229, 236, 0.52);
@@ -2637,30 +2637,32 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   --danger:       #F58AA8;
   --success:      #F1C77C;
 }
-/* Solid ground + a very subtle scattered-blossom pattern so the whole
-   surface reads Sakura, not a generic gradient. Petal SVG is embedded
-   at 4-6% opacity: present, not decorative. */
-[data-theme="sakura-light"] body {
-  background-color: #FFEEF3 !important;
-  background-image:
-    radial-gradient(ellipse 800px 400px at 20% 10%, rgba(245, 138, 168, 0.20), transparent 65%),
-    radial-gradient(ellipse 700px 350px at 85% 90%, rgba(106, 130, 165, 0.14), transparent 65%),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'><g fill='%23C13D5F' opacity='0.055'><g transform='translate(40 40) scale(0.9)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g><g transform='translate(120 100) scale(0.7) rotate(28)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g></g></svg>") !important;
-  background-repeat: no-repeat, no-repeat, repeat;
-  background-size: auto, auto, 200px 200px;
-  background-attachment: fixed !important;
+/* Sakura ground = the backdrop image (--bg-image) rendered via the base
+   body rule, PLUS body::before as a warm colour wash + petal pattern
+   overlay so the whole scene stays cohesive with the palette. */
+[data-theme^="sakura"] body {
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
-[data-theme="sakura-dark"] body {
-  background-color: #0B0715 !important;
-  background-image:
-    radial-gradient(ellipse 900px 500px at 20% 10%, rgba(155, 44, 74, 0.32), transparent 65%),
-    radial-gradient(ellipse 800px 400px at 85% 85%, rgba(253, 184, 99, 0.10), transparent 65%),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'><g fill='%23F58AA8' opacity='0.06'><g transform='translate(40 40) scale(0.9)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g><g transform='translate(120 100) scale(0.7) rotate(28)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g></g></svg>") !important;
-  background-repeat: no-repeat, no-repeat, repeat;
-  background-size: auto, auto, 200px 200px;
-  background-attachment: fixed !important;
+[data-theme="sakura-light"] body::before {
+  background:
+    radial-gradient(ellipse 900px 500px at 20% 10%, rgba(245, 138, 168, 0.18), transparent 60%),
+    radial-gradient(ellipse 700px 400px at 85% 90%, rgba(155, 44, 74, 0.10), transparent 60%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='%23C13D5F' opacity='0.04'><g transform='translate(50 50) scale(0.9)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g><g transform='translate(150 130) scale(0.7) rotate(28)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g></g></svg>") !important;
+  background-size: auto, auto, 200px 200px !important;
+  background-repeat: no-repeat, no-repeat, repeat !important;
 }
-[data-theme^="sakura"] body::before { background: transparent !important; }
+[data-theme="sakura-dark"] body::before {
+  background:
+    radial-gradient(ellipse 900px 500px at 20% 10%, rgba(20, 8, 30, 0.35), transparent 60%),
+    radial-gradient(ellipse 800px 400px at 85% 85%, rgba(20, 8, 30, 0.28), transparent 60%),
+    linear-gradient(180deg, rgba(11, 7, 21, 0.32) 0%, rgba(11, 7, 21, 0.15) 50%, rgba(11, 7, 21, 0.30) 100%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='%23F58AA8' opacity='0.05'><g transform='translate(50 50) scale(0.9)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g><g transform='translate(150 130) scale(0.7) rotate(28)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g></g></svg>") !important;
+  background-size: auto, auto, auto, 200px 200px !important;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat !important;
+}
 
 /* Vertical katakana chop mark — the poet's signature, top-right.
    Ambient, muted, part of the atmosphere. */
