@@ -227,6 +227,35 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   100% { opacity: 0; transform: translate(-50%, -60px); }
 }
 
+/* Bhukara pickup modal — one-time big announcement */
+.bhukara-modal {
+  max-width: 480px;
+  text-align: center;
+  padding: 40px 32px 32px;
+}
+.bhukara-modal-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+.bhukara-modal-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.bhukara-modal-name {
+  font-family: 'Fraunces', serif;
+  font-size: 34px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 28px;
+  letter-spacing: 0.5px;
+}
+.bhukara-modal .primary { min-width: 140px; }
+
 /* Match-end modal — scoreboard with per-team breakdown */
 .match-end-modal { max-width: 780px; }
 .match-end-modal h2 {

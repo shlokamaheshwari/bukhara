@@ -411,7 +411,18 @@ export function discard(match: Match, cardId: string): MoveResult {
       };
       return { ok: true, match: next };
     } else {
-      // Match closes.
+      // Match closes — but only if the team has completed at least one 7+ card
+      // sequence (a "ganastha"). Without it, you're not allowed to close.
+      const teamBox = next.teams[team.id].sequenceBox;
+      const hasFullSequence = teamBox.some(
+        (m) => m.kind === 'sequence' && m.cards.length >= 7,
+      );
+      if (!hasFullSequence) {
+        return {
+          ok: false,
+          reason: 'Cannot close: your team needs at least one 7-card sequence first',
+        };
+      }
       next = {
         ...next,
         phase: 'ended-normal',

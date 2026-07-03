@@ -127,19 +127,18 @@ export default function GameScreen(props: GameScreenProps = {}) {
     }
   }
 
-  // Detect a fresh bhukara pickup — flash a banner for a few seconds.
-  const prevBhukaraTakenBy = useRef<number | null>(null);
+  // Detect a fresh bhukara pickup — show the announcement modal once per pickup.
+  // The `seen` set holds match numbers we've already shown so the modal doesn't
+  // re-appear when the game state updates on later turns.
+  const seenBhukaraFor = useRef<Set<number>>(new Set());
   useEffect(() => {
     const now = match.bhukaraTakenBy;
-    if (now !== null && now !== prevBhukaraTakenBy.current) {
-      const who = match.players[now]?.name ?? `Player ${now + 1}`;
-      const team = match.players[now]?.teamId ?? '?';
-      setBhukaraAnnouncement(`${who} picked up the Bukhara — Team ${team} +50`);
-      const t = setTimeout(() => setBhukaraAnnouncement(null), 4000);
-      return () => clearTimeout(t);
-    }
-    prevBhukaraTakenBy.current = now;
-  }, [match.bhukaraTakenBy, match.players]);
+    if (now === null) return;
+    if (seenBhukaraFor.current.has(match.matchNumber)) return;
+    seenBhukaraFor.current.add(match.matchNumber);
+    const who = match.players[now]?.name ?? `Player ${now + 1}`;
+    setBhukaraAnnouncement(who);
+  }, [match.bhukaraTakenBy, match.matchNumber, match.players]);
 
   // When the match number advances, clear the previous dismiss.
   useEffect(() => {
@@ -480,9 +479,15 @@ export default function GameScreen(props: GameScreenProps = {}) {
       )}
 
       {bhukaraAnnouncement && (
-        <div className="announcement-banner">
-          <div className="announcement-emoji">🎴</div>
-          <div className="announcement-text">{bhukaraAnnouncement}</div>
+        <div className="modal-backdrop" onClick={() => setBhukaraAnnouncement(null)}>
+          <div className="modal-content bhukara-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="bhukara-modal-emoji">🎴</div>
+            <div className="bhukara-modal-title">Bukhara picked up</div>
+            <div className="bhukara-modal-name">{bhukaraAnnouncement}</div>
+            <button className="primary" onClick={() => setBhukaraAnnouncement(null)}>
+              Got it
+            </button>
+          </div>
         </div>
       )}
 

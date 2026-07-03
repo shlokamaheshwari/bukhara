@@ -382,10 +382,15 @@ describe('discard and turn flow', () => {
               id: 'seed-1',
               kind: 'sequence',
               suit: 'S',
+              // 7-card sequence — needed to be allowed to close.
               cards: [
                 { card: S(3), actingAs: 3, isJoker: false },
                 { card: S(4), actingAs: 4, isJoker: false },
                 { card: S(5), actingAs: 5, isJoker: false },
+                { card: S(6), actingAs: 6, isJoker: false },
+                { card: S(7), actingAs: 7, isJoker: false },
+                { card: S(8), actingAs: 8, isJoker: false },
+                { card: S(9), actingAs: 9, isJoker: false },
               ],
             },
           ],
@@ -397,6 +402,41 @@ describe('discard and turn flow', () => {
     if (r.ok) {
       expect(r.match.phase).toBe('ended-normal');
       expect(r.match.closedBy).toBe(0);
+    }
+  });
+
+  it('cannot close without a 7+ card sequence', () => {
+    let m = craftMatch({ turnPhase: 'may-meld' });
+    m = withHand(m, 0, [H(9)]);
+    m = {
+      ...m,
+      bhukaraTakenBy: 2,
+      bhukara: [],
+      teams: {
+        ...m.teams,
+        A: {
+          ...m.teams.A,
+          firstDropDone: true,
+          firstDropByPlayer: 2,
+          sequenceBox: [
+            {
+              id: 'seed-1',
+              kind: 'sequence',
+              suit: 'S',
+              cards: [
+                { card: S(3), actingAs: 3, isJoker: false },
+                { card: S(4), actingAs: 4, isJoker: false },
+                { card: S(5), actingAs: 5, isJoker: false },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const r = discard(m, 'H9a');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reason).toMatch(/7-card sequence/);
     }
   });
 
