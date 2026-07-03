@@ -2583,6 +2583,315 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
 }
 
 /* =============================================================
+   Bhukara — "Sakura no Uta" aesthetic (Theme 09)
+   The hybrid: Hanami palette (warm cream/blush by day, indigo/
+   lantern amber by night) delivered with Ink-and-Petal typography
+   (Hiragino Mincho ProN weight 400, 0.10em tracking, bilingual
+   `Bukhara ブハラ` mark). No landscape image, no scrim, no glow —
+   the restraint is the treatment. One quiet signature: a vertical
+   katakana chop mark `サクラノウタ` in the far-right margin.
+   ============================================================= */
+[data-theme="sakura-light"] {
+  --bg-image: none;
+  --text-primary: #3B0F1E;
+  --text-dim:     rgba(59, 15, 30, 0.72);
+  --text-faint:   rgba(59, 15, 30, 0.50);
+  --panel-bg:     rgba(255, 249, 245, 0.65);
+  --panel-bg-strong: rgba(255, 249, 245, 0.85);
+  --panel-border: rgba(155, 44, 74, 0.16);
+  --panel-highlight: rgba(255, 255, 255, 0.7);
+  --panel-shadow: 0 12px 40px rgba(155, 44, 74, 0.12);
+  --input-bg:     rgba(255, 249, 245, 0.5);
+  --input-border: rgba(155, 44, 74, 0.22);
+  --input-focus:  #9B2C4A;
+  --accent:       #9B2C4A;
+  --accent-alt:   #6A82A5;
+  --card-face:    #FFFCFA;
+  --card-back:    #9B2C4A;
+  --team-a:       #9B2C4A;
+  --team-b:       #6A82A5;
+  --divider:      rgba(155, 44, 74, 0.14);
+  --danger:       #9B2C4A;
+  --success:      #6A82A5;
+}
+[data-theme="sakura-dark"] {
+  --bg-image: none;
+  --text-primary: #F5E5EC;
+  --text-dim:     rgba(245, 229, 236, 0.78);
+  --text-faint:   rgba(245, 229, 236, 0.52);
+  --panel-bg:     rgba(42, 31, 50, 0.65);
+  --panel-bg-strong: rgba(42, 31, 50, 0.86);
+  --panel-border: rgba(200, 106, 133, 0.22);
+  --panel-highlight: rgba(255, 255, 255, 0.05);
+  --panel-shadow: 0 16px 50px rgba(0, 0, 0, 0.55);
+  --input-bg:     rgba(20, 16, 30, 0.62);
+  --input-border: rgba(200, 106, 133, 0.25);
+  --input-focus:  #FDB863;
+  --accent:       #FDB863;
+  --accent-alt:   #F58AA8;
+  --card-face:    #F5EED9;
+  --card-back:    #3B1D30;
+  --team-a:       #F58AA8;
+  --team-b:       #F1C77C;
+  --divider:      rgba(245, 229, 236, 0.14);
+  --danger:       #F58AA8;
+  --success:      #F1C77C;
+}
+/* Solid ground — no landscape photo behind Sakura */
+[data-theme="sakura-light"] body {
+  background: linear-gradient(180deg, #FFF3F5 0%, #FFF9F5 100%) !important;
+  background-image: none !important;
+  background-color: #FFF3F5;
+}
+[data-theme="sakura-dark"] body {
+  background: linear-gradient(180deg, #14101E 0%, #1E1728 100%) !important;
+  background-image: none !important;
+  background-color: #14101E;
+}
+[data-theme^="sakura"] body::before { background: transparent; }
+
+/* Vertical katakana chop mark — the poet's signature, top-right.
+   Ambient, muted, part of the atmosphere. */
+[data-theme^="sakura"] body::after {
+  content: 'サクラノウタ';
+  position: fixed;
+  top: 90px;
+  right: 10px;
+  writing-mode: vertical-rl;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'PingFang SC', Georgia, serif;
+  font-size: 12px;
+  letter-spacing: 0.32em;
+  color: var(--text-primary);
+  opacity: 0.14;
+  pointer-events: none;
+  z-index: 0;
+  background: none;
+}
+[data-theme="sakura-dark"] body::after { opacity: 0.22; }
+
+/* Type overrides: everywhere the app displays a heading, chip, label,
+   or ceremonial line, switch to the mincho pack at weight 400 with
+   0.10em tracking. Body prose stays Inter for readability. */
+[data-theme^="sakura"] .topbar h1,
+[data-theme^="sakura"] .modal-content h2,
+[data-theme^="sakura"] .modal-content h3,
+[data-theme^="sakura"] .match-end-modal h2,
+[data-theme^="sakura"] .team-name,
+[data-theme^="sakura"] .bhukara-modal-name,
+[data-theme^="sakura"] .announcement-text,
+[data-theme^="sakura"] .score-chip,
+[data-theme^="sakura"] .turn-status,
+[data-theme^="sakura"] .meld-strip-label,
+[data-theme^="sakura"] .team-box-header,
+[data-theme^="sakura"] .pile-label,
+[data-theme^="sakura"] .hand-label,
+[data-theme^="sakura"] .match-chip,
+[data-theme^="sakura"] .winner-chip,
+[data-theme^="sakura"] .tb-btn,
+[data-theme^="sakura"] button.minor,
+[data-theme^="sakura"] .seat-name,
+[data-theme^="sakura"] .seat-role,
+[data-theme^="sakura"] .seat-count {
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'PingFang SC', 'Songti SC', Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0.10em;
+}
+/* Topbar title: keep it slightly wider tracked; add the bilingual mark. */
+[data-theme^="sakura"] .topbar h1 {
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: none;
+  font-size: 22px;
+}
+[data-theme^="sakura"] .topbar h1::after {
+  content: '　ブハラ';
+  font-size: 0.60em;
+  letter-spacing: 0.28em;
+  color: #8B4A5B;
+  opacity: 0.85;
+  font-weight: 400;
+  margin-left: 0.4em;
+  vertical-align: 0.05em;
+}
+[data-theme="sakura-dark"] .topbar h1::after {
+  color: #C68197;
+  opacity: 0.72;
+}
+
+/* Score chips — bordered mincho, no small-caps forcing */
+[data-theme^="sakura"] .score-chip {
+  padding: 5px 12px;
+  font-size: 11.5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--divider);
+}
+[data-theme="sakura-dark"] .score-chip { background: rgba(255, 255, 255, 0.05); }
+[data-theme^="sakura"] .score-chip.team-a { color: var(--team-a); border-left: 2px solid var(--team-a); }
+[data-theme^="sakura"] .score-chip.team-b { color: var(--team-b); border-left: 2px solid var(--team-b); }
+[data-theme^="sakura"] .match-chip {
+  color: var(--text-dim);
+  padding: 5px 12px;
+  border-radius: 3px;
+  background: transparent;
+  border: 1px dashed var(--divider);
+  font-size: 10.5px;
+}
+
+/* Turn status — thin mincho ribbon, no ALL CAPS, no cursor */
+[data-theme^="sakura"] .turn-status {
+  background: rgba(155, 44, 74, 0.06);
+  border-top: 1px solid rgba(155, 44, 74, 0.20);
+  border-bottom: 1px solid rgba(155, 44, 74, 0.20);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0.10em;
+}
+[data-theme="sakura-dark"] .turn-status {
+  background: rgba(253, 184, 99, 0.08);
+  border-top-color: rgba(253, 184, 99, 0.28);
+  border-bottom-color: rgba(253, 184, 99, 0.28);
+}
+
+/* Team meld boxes: quiet plum/sky left rails; gold rail on pure */
+[data-theme^="sakura"] .team-box.team-box-a .meld-strip { border-left-color: var(--team-a); }
+[data-theme^="sakura"] .team-box.team-box-b .meld-strip { border-left-color: var(--team-b); }
+[data-theme^="sakura"] .meld-strip.pure { border-left-color: var(--accent); }
+[data-theme^="sakura"] .meld-purity.pure {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+[data-theme^="sakura"] .meld-purity.impure {
+  color: var(--accent-alt);
+  border-color: var(--accent-alt);
+  background: color-mix(in srgb, var(--accent-alt) 10%, transparent);
+}
+
+/* Toolbar & minor buttons: soft plum outline in day, amber in night */
+[data-theme^="sakura"] .tb-btn {
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.04);
+  text-transform: none;
+  letter-spacing: 0.08em;
+  font-size: 11.5px;
+}
+[data-theme="sakura-light"] .tb-btn { background: rgba(0, 0, 0, 0.02); }
+[data-theme^="sakura"] .tb-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+[data-theme^="sakura"] .tb-btn.primary {
+  background: var(--accent);
+  color: var(--card-face);
+  border-color: var(--accent);
+}
+[data-theme^="sakura"] .topbar button.minor {
+  background: rgba(155, 44, 74, 0.06);
+  border: 1px solid rgba(155, 44, 74, 0.22);
+  color: var(--accent);
+}
+[data-theme="sakura-dark"] .topbar button.minor {
+  background: rgba(253, 184, 99, 0.10);
+  border-color: rgba(253, 184, 99, 0.30);
+  color: var(--accent);
+}
+[data-theme^="sakura"] .topbar button.minor:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--card-face);
+}
+
+/* Seat avatars: blossom for Team A, sky-blue for Team B (day);
+   blossom pink + lantern amber (night). Mincho initials, warm shadow. */
+[data-theme="sakura-light"] .seat-avatar-team-a {
+  background: linear-gradient(135deg, #F5AABF 0%, #9B2C4A 100%) !important;
+  color: #FFFCFA;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+  box-shadow: 0 4px 16px rgba(155, 44, 74, 0.30), inset 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+[data-theme="sakura-light"] .seat-avatar-team-b {
+  background: linear-gradient(135deg, #9BAECC 0%, #4A5F80 100%) !important;
+  color: #FFFCFA;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+  box-shadow: 0 4px 16px rgba(106, 130, 165, 0.30), inset 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+[data-theme="sakura-dark"] .seat-avatar-team-a {
+  background: linear-gradient(135deg, #F58AA8 0%, #7A2E4A 100%) !important;
+  color: #F5E5EC;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+  box-shadow: 0 4px 16px rgba(245, 138, 168, 0.32), inset 0 0 0 2px rgba(253, 184, 99, 0.28);
+}
+[data-theme="sakura-dark"] .seat-avatar-team-b {
+  background: linear-gradient(135deg, #F1C77C 0%, #A0864B 100%) !important;
+  color: #14101E;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+  box-shadow: 0 4px 16px rgba(241, 199, 124, 0.30), inset 0 0 0 2px rgba(245, 229, 236, 0.28);
+}
+[data-theme^="sakura"] .seat-turn-glow {
+  border-color: var(--accent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* Cards: cream/ivory face, thin plum hairline, mincho ranks */
+[data-theme^="sakura"] .pc:not(.pc-back) {
+  background: var(--card-face);
+  border: 1px solid rgba(155, 44, 74, 0.24);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+    0 4px 14px rgba(155, 44, 74, 0.14);
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Palatino', Georgia, serif;
+  font-weight: 400;
+}
+[data-theme="sakura-dark"] .pc:not(.pc-back) {
+  border-color: rgba(245, 138, 168, 0.30);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 240, 245, 0.35),
+    0 6px 20px rgba(0, 0, 0, 0.5);
+}
+/* Kill Editorial halftone / HotD double rim */
+[data-theme^="sakura"] .pc:not(.pc-back)::before { background-image: none; }
+[data-theme^="sakura"] .pc:not(.pc-back)::after { display: none; }
+[data-theme^="sakura"] .pc-rank {
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Palatino', Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+[data-theme="sakura-light"] .pc-red { color: #9B2C4A; }
+[data-theme="sakura-light"] .pc-black { color: #3B0F1E; }
+[data-theme="sakura-dark"] .pc-red { color: #F58AA8; }
+[data-theme="sakura-dark"] .pc-black { color: #2A1F32; }
+[data-theme^="sakura"] .pc-selected {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, white),
+    0 0 24px color-mix(in srgb, var(--accent) 40%, transparent),
+    0 4px 14px rgba(0, 0, 0, 0.3);
+}
+/* Card back: plum by day, deep plum by night */
+[data-theme^="sakura"] .pc-back {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--card-back) 90%, white) 0%,
+    var(--card-back) 100%);
+  border: 1px solid color-mix(in srgb, var(--card-back) 60%, transparent);
+}
+[data-theme^="sakura"] .pc-back::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(255, 240, 245, 0.15);
+  border-radius: 5px;
+  pointer-events: none;
+}
+
+/* Hand strip: soft top rule in accent hue */
+[data-theme^="sakura"] .hand-strip {
+  border-top: 1px solid var(--divider);
+}
+
+/* =============================================================
    Team score-chip popover — per-match history dropdown.
    Anchors under the clicked chip; shows Match 1 / +145 style rows.
    ============================================================= */

@@ -65,7 +65,7 @@ export type GameScreenProps = {
 
   // Theme controls surfaced in the topbar so players can switch pack + mode
   // mid-game without hunting for the floating buttons.
-  themePack?: 'editorial' | 'hotd' | 'terminal';
+  themePack?: 'editorial' | 'hotd' | 'terminal' | 'sakura';
   themeMode?: 'light' | 'dark';
   onToggleThemePack?: () => void;
   onToggleThemeMode?: () => void;
@@ -358,15 +358,23 @@ export default function GameScreen(props: GameScreenProps = {}) {
           })}
           <div className="match-chip">Match {match.matchNumber}</div>
           {game.winner && <div className="winner-chip">🏆 Team {game.winner}</div>}
-          {props.themePack && props.onToggleThemePack && (
-            <button
-              className="minor topbar-theme-btn"
-              onClick={props.onToggleThemePack}
-              title={`Theme: ${props.themePack === 'editorial' ? 'Editorial' : props.themePack === 'hotd' ? 'House of the Dragon' : 'Terminal'} — click to switch`}
-            >
-              {props.themePack === 'editorial' ? '⛰ Editorial' : props.themePack === 'hotd' ? '🐉 HotD' : '▊ Terminal'}
-            </button>
-          )}
+          {props.themePack && props.onToggleThemePack && (() => {
+            const meta = {
+              editorial: { icon: '⛰', short: 'Editorial', full: 'Editorial' },
+              hotd: { icon: '🐉', short: 'HotD', full: 'House of the Dragon' },
+              terminal: { icon: '▊', short: 'Terminal', full: 'Terminal' },
+              sakura: { icon: '🌸', short: 'Sakura', full: 'Sakura no Uta' },
+            }[props.themePack];
+            return (
+              <button
+                className="minor topbar-theme-btn"
+                onClick={props.onToggleThemePack}
+                title={`Theme: ${meta.full} — click to switch`}
+              >
+                {meta.icon} {meta.short}
+              </button>
+            );
+          })()}
           {props.themeMode && props.onToggleThemeMode && (
             <button
               className="minor topbar-theme-btn"
