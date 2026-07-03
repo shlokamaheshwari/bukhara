@@ -22,7 +22,7 @@
 
 /* ---- LIGHT theme ---- */
 :root, [data-theme="light"] {
-  --bg-image: url('/mountain-light.png');
+  --bg-image: url('/mountain-light.webp');
   --text-primary: #1C1E22;
   --text-dim:     rgba(28, 30, 34, 0.62);
   --text-faint:   rgba(28, 30, 34, 0.4);
@@ -47,7 +47,7 @@
 
 /* ---- DARK theme ---- */
 [data-theme="dark"] {
-  --bg-image: url('/mountain-dark.png');
+  --bg-image: url('/mountain-dark.webp');
   --text-primary: #F4EDDD;
   --text-dim:     rgba(244, 237, 221, 0.7);
   --text-faint:   rgba(244, 237, 221, 0.4);
@@ -78,7 +78,7 @@
    Cinzel display, Baskerville body, Copperplate labels.
    ============================================================= */
 [data-theme="hotd-light"] {
-  --bg-image: url('/hotd-light.png');
+  --bg-image: url('/hotd-light.webp');
   --text-primary: #17110A;
   --text-dim:     rgba(23, 17, 10, 0.85);
   --text-faint:   rgba(23, 17, 10, 0.62);
@@ -512,7 +512,7 @@
 
 /* HotD-dark theme block below (unchanged): */
 [data-theme="hotd-dark"] {
-  --bg-image: url('/hotd-dark.png');
+  --bg-image: url('/hotd-dark.webp');
   --text-primary: #F1E8D2;
   --text-dim:     rgba(241, 232, 210, 0.88);
   --text-faint:   rgba(241, 232, 210, 0.65);
@@ -2592,7 +2592,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
    katakana chop mark `サクラノウタ` in the far-right margin.
    ============================================================= */
 [data-theme="sakura-light"] {
-  --bg-image: url('/sakura-light.png');
+  --bg-image: url('/sakura-light.webp');
   --text-primary: #3B0F1E;
   --text-dim:     rgba(59, 15, 30, 0.72);
   --text-faint:   rgba(59, 15, 30, 0.50);
@@ -2615,7 +2615,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   --success:      #6A82A5;
 }
 [data-theme="sakura-dark"] {
-  --bg-image: url('/sakura-dark.png');
+  --bg-image: url('/sakura-dark.webp');
   --text-primary: #F5E5EC;
   --text-dim:     rgba(245, 229, 236, 0.78);
   --text-faint:   rgba(245, 229, 236, 0.52);
