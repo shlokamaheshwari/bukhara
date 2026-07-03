@@ -603,11 +603,11 @@ body::before {
 }
 [data-theme="hotd-light"] body::before {
   background: linear-gradient(180deg,
-    rgba(255, 249, 234, 0.62) 0%,
-    rgba(255, 249, 234, 0.40) 45%,
-    rgba(255, 249, 234, 0.55) 100%);
-  -webkit-backdrop-filter: saturate(0.55) brightness(1.05);
-  backdrop-filter: saturate(0.55) brightness(1.05);
+    rgba(255, 249, 234, 0.38) 0%,
+    rgba(255, 249, 234, 0.20) 45%,
+    rgba(255, 249, 234, 0.32) 100%);
+  -webkit-backdrop-filter: saturate(0.75) brightness(1.02);
+  backdrop-filter: saturate(0.75) brightness(1.02);
 }
 [data-theme="hotd-dark"] body::before {
   background: linear-gradient(180deg,
