@@ -309,9 +309,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
             );
             return (
               <div key={t} className={`score-chip team-${t.toLowerCase()}`}>
-                <span className="score-chip-team">Team {t}</span>
-                <span className="score-chip-total">{game.teams[t].totalScore}</span>
-                <span className="score-chip-meld">+{meldPts} meld</span>
+                Team {t} · {meldPts}
               </div>
             );
           })}
