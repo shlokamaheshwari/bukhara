@@ -1,14 +1,21 @@
-// Bukhara bot with real strategy. On each turn the bot:
-//   1. Decides whether to draw stock or pick the discard pile based on
-//      whether that pile lets it form new melds.
-//   2. Looks for pure sequences, impure sequences (using jokers), triplets,
-//      and additions to existing team melds. Drops what it can.
-//   3. If it's on track to empty, tries to close via Bhukara.
-//   4. Discards its least useful card — one that's isolated in its hand
-//      and (heuristically) low value to opponents.
+// Bukhara bot with layered strategy. Each turn the bot:
+//   1. Reads the situation — team's meld progress, whether we've hit ganastha,
+//      whether either team has taken bhukara, how many cards each player holds.
+//   2. Checks for a closing move first — if the team has a 7+ meld and we can
+//      empty our hand, we take that path.
+//   3. Otherwise runs through priorities: grow existing melds toward 7 cards,
+//      do the required first drop, add cards to team melds, drop new melds,
+//      and finally discard.
 //
-// The bot works only from data visible to it: its own hand, the shared
-// discard pile, the visible melds on the table.
+// The bot works only from information visible to it: its own hand, the shared
+// discard pile, and the melds already on the table.
+//
+// Rules from src/game/moves.ts that the bot must respect:
+//   - First drop for a team must include at least one pure sequence.
+//   - If the team is past 1000 pts, first drop must total >=100 pts.
+//   - Triplets are only legal after the team has a pure sequence.
+//   - Closing (empty hand after bhukara is taken) requires a 7+ meld.
+//   - Must have at least 1 card to discard at the end of the turn.
 
 import type {
   Card,
@@ -28,42 +35,99 @@ import { cardValue, isPureSequence } from '../src/game/scoring';
 const RANK_LOW = 1;
 const RANK_HIGH = 13;
 
-// ---------------- Helpers ------------------------------------------------
+// ---------------- Situation awareness -----------------------------------
 
-function cardsById(hand: Card[]): Map<string, Card> {
-  const m = new Map<string, Card>();
-  for (const c of hand) m.set(c.id, c);
-  return m;
+type Situation = {
+  hand: Card[];
+  myTeamMelds: Meld[];
+  oppTeamMelds: Meld[];
+  hasPureInBox: boolean;
+  hasFullMeld: boolean;      // team already has a 7+ meld
+  mustFirstDropReach100: boolean;
+  firstDropDone: boolean;
+  bhukaraTaken: boolean;
+  bhukaraMine: boolean;
+  oppMinHand: number;         // smallest opponent hand — how close they are to closing
+  stockRemaining: number;
+};
+
+function readSituation(match: Match, seat: PlayerId): Situation {
+  const teamId = TEAM_OF[seat];
+  const team = match.teams[teamId];
+  const oppId: 'A' | 'B' = teamId === 'A' ? 'B' : 'A';
+  const opp = match.teams[oppId];
+  const hand = match.players[seat].hand;
+  const oppMinHand = ([0, 1, 2, 3] as PlayerId[])
+    .filter((p) => TEAM_OF[p] !== teamId)
+    .map((p) => match.players[p].hand.length)
+    .reduce((a, b) => Math.min(a, b), Infinity);
+  return {
+    hand,
+    myTeamMelds: team.sequenceBox,
+    oppTeamMelds: opp.sequenceBox,
+    hasPureInBox: team.sequenceBox.some(isPureSequence),
+    hasFullMeld: team.sequenceBox.some((m) => m.cards.length >= 7),
+    mustFirstDropReach100: team.mustFirstDropReach100,
+    firstDropDone: team.firstDropDone,
+    bhukaraTaken: match.bhukaraTakenBy !== null,
+    bhukaraMine: match.bhukaraTakenBy !== null && TEAM_OF[match.bhukaraTakenBy] === teamId,
+    oppMinHand,
+    stockRemaining: match.stock.length,
+  };
 }
 
-// Non-joker consecutive same-suit runs of length >= 3.
-function findPureSequences(hand: Card[]): SequenceMeldCard[][] {
+// ---------------- Hand analysis -----------------------------------------
+
+// A collection of playable groupings the bot could form from its current hand.
+type PlayPlan = {
+  // New pure sequences we could drop.
+  pureSequences: SequenceMeldCard[][];
+  // New triplets we could drop (natural sets of same rank).
+  triplets: TripletMeldCard[][];
+  // New impure sequences (using jokers). May be longer than pure runs.
+  impureSequences: SequenceMeldCard[][];
+  // Additions to existing team melds — grouped by meld.
+  additions: {
+    meldId: string;
+    kind: 'sequence' | 'triplet';
+    // Cards added; for sequences the joker positions are pre-computed.
+    seqAdd?: SequenceMeldCard[];
+    tripAdd?: TripletMeldCard[];
+  }[];
+};
+
+function cardsBySuit(cards: Card[]): Record<Suit, Card[]> {
   const bySuit: Record<Suit, Card[]> = { H: [], D: [], C: [], S: [] };
-  for (const c of hand) bySuit[c.suit].push(c);
-  const runs: SequenceMeldCard[][] = [];
-  for (const suit of ['H', 'D', 'C', 'S'] as Suit[]) {
-    const arr = bySuit[suit].slice().sort((a, b) => a.rank - b.rank);
-    // Deduplicate cards at same rank (we have 2 decks, either copy is fine).
-    const uniq: Card[] = [];
-    const seen = new Set<number>();
-    for (const c of arr) {
-      if (!seen.has(c.rank)) { uniq.push(c); seen.add(c.rank); }
-    }
-    let run: Card[] = [];
-    for (const c of uniq) {
-      if (run.length === 0 || c.rank === run[run.length - 1].rank + 1) {
-        run.push(c);
-      } else {
-        if (run.length >= 3) runs.push(runToAttempt(run));
-        run = [c];
-      }
-    }
-    if (run.length >= 3) runs.push(runToAttempt(run));
+  for (const c of cards) bySuit[c.suit].push(c);
+  for (const s of ['H', 'D', 'C', 'S'] as Suit[]) {
+    bySuit[s].sort((a, b) => a.rank - b.rank);
   }
+  return bySuit;
+}
+
+// Longest run in a same-suit sorted array (dedup by rank — either copy is fine).
+function longestPureRuns(cards: Card[]): Card[][] {
+  const uniq: Card[] = [];
+  const seen = new Set<number>();
+  for (const c of cards) {
+    if (c.rank === JOKER_RANK) continue;
+    if (!seen.has(c.rank)) { uniq.push(c); seen.add(c.rank); }
+  }
+  const runs: Card[][] = [];
+  let run: Card[] = [];
+  for (const c of uniq) {
+    if (run.length === 0 || c.rank === run[run.length - 1].rank + 1) {
+      run.push(c);
+    } else {
+      if (run.length >= 3) runs.push(run);
+      run = [c];
+    }
+  }
+  if (run.length >= 3) runs.push(run);
   return runs;
 }
 
-function runToAttempt(run: Card[]): SequenceMeldCard[] {
+function runToPureAttempt(run: Card[]): SequenceMeldCard[] {
   return run.map((c) => ({
     card: c,
     actingAs: c.rank as SeqPos,
@@ -71,78 +135,183 @@ function runToAttempt(run: Card[]): SequenceMeldCard[] {
   }));
 }
 
-// Cards of the same rank (natural), grouped for triplet detection.
+// Build the longest impure sequence in a given suit using available jokers.
+// Greedy: pick the longest same-suit natural window, then use jokers to fill
+// gaps or extend either end. Uses the joker budget passed in.
+function bestImpureSequenceForSuit(
+  sameSuit: Card[],
+  jokerBudget: Card[],
+): SequenceMeldCard[] | null {
+  if (sameSuit.length < 2 || jokerBudget.length === 0) return null;
+  const uniq: Card[] = [];
+  const seen = new Set<number>();
+  for (const c of sameSuit) {
+    if (c.rank === JOKER_RANK) continue;
+    if (!seen.has(c.rank)) { uniq.push(c); seen.add(c.rank); }
+  }
+  uniq.sort((a, b) => a.rank - b.rank);
+
+  let best: SequenceMeldCard[] | null = null;
+  // Try every subset of naturals as the "spine" (window between two picked ranks).
+  for (let i = 0; i < uniq.length; i++) {
+    for (let j = i + 1; j < uniq.length; j++) {
+      const low = uniq[i].rank;
+      const high = uniq[j].rank;
+      const span = high - low + 1;
+      // Count naturals within [low..high].
+      const inside = uniq.filter((c) => c.rank >= low && c.rank <= high);
+      const gaps = span - inside.length;
+      if (gaps > jokerBudget.length) continue;
+      // Also try extending ends by remaining jokers.
+      const extra = jokerBudget.length - gaps;
+      const lowExt = Math.max(RANK_LOW, low - extra);
+      const highExt = Math.min(14, high + (extra - (low - lowExt)));
+      const finalLow = lowExt;
+      const finalHigh = highExt;
+      const finalSpan = finalHigh - finalLow + 1;
+      if (finalSpan < 3) continue;
+      // Build meld cards.
+      const naturalsMap = new Map<number, Card>();
+      for (const c of inside) naturalsMap.set(c.rank, c);
+      const jokerQueue = [...jokerBudget];
+      const meldCards: SequenceMeldCard[] = [];
+      let bail = false;
+      for (let pos = finalLow; pos <= finalHigh; pos++) {
+        const nat = naturalsMap.get(pos);
+        if (nat) {
+          meldCards.push({ card: nat, actingAs: pos as SeqPos, isJoker: false });
+        } else {
+          const j = jokerQueue.shift();
+          if (!j) { bail = true; break; }
+          meldCards.push({ card: j, actingAs: pos as SeqPos, isJoker: true });
+        }
+      }
+      if (bail || meldCards.length < 3) continue;
+      if (!best || meldCards.length > best.length) best = meldCards;
+    }
+  }
+  return best;
+}
+
 function findTriplets(hand: Card[]): TripletMeldCard[][] {
   const byRank = new Map<Rank, Card[]>();
   for (const c of hand) {
+    if (c.rank === JOKER_RANK) continue; // triplets of 2s only if user has 3 natural 2s → handled below separately
     if (!byRank.has(c.rank)) byRank.set(c.rank, []);
     byRank.get(c.rank)!.push(c);
   }
   const trips: TripletMeldCard[][] = [];
-  for (const [rank, cards] of byRank.entries()) {
-    // Triplet cannot use jokers if rank is 2 (natural).
-    if (rank === JOKER_RANK && cards.length >= 3) {
-      trips.push(cards.map((c) => ({ card: c, isJoker: false })));
-    } else if (cards.length >= 3) {
-      trips.push(cards.map((c) => ({ card: c, isJoker: false })));
-    }
+  for (const cards of byRank.values()) {
+    if (cards.length >= 3) trips.push(cards.map((c) => ({ card: c, isJoker: false })));
   }
+  // Natural triplet of 2s if we have 3+ actual 2s.
+  const twos = hand.filter((c) => c.rank === JOKER_RANK);
+  if (twos.length >= 3) trips.push(twos.map((c) => ({ card: c, isJoker: false })));
   return trips;
 }
 
-// Try to form an impure sequence using a joker (a 2) with two same-suit
-// consecutive naturals. Returns the sequence attempt if found.
-function findImpureSequence(hand: Card[]): SequenceMeldCard[] | null {
-  const jokers = hand.filter((c) => c.rank === JOKER_RANK);
-  if (jokers.length === 0) return null;
-  const bySuit: Record<Suit, Card[]> = { H: [], D: [], C: [], S: [] };
-  for (const c of hand) if (c.rank !== JOKER_RANK) bySuit[c.suit].push(c);
-  for (const suit of ['H', 'D', 'C', 'S'] as Suit[]) {
-    const arr = bySuit[suit].slice().sort((a, b) => a.rank - b.rank);
-    // Look for two consecutive that could bracket the joker (a,a+2) or extend a pair (a,a+1) + joker at either end.
-    for (let i = 0; i < arr.length; i++) {
-      const a = arr[i];
-      // Extend pair (a, a+1) by joker on either side.
-      for (let j = i + 1; j < arr.length; j++) {
-        const b = arr[j];
-        if (b.rank - a.rank === 1) {
-          const joker = jokers[0];
-          // joker before a (if a.rank > 1) or after b (if b.rank < 13)
-          if (a.rank > RANK_LOW) {
-            return [
-              { card: joker, actingAs: (a.rank - 1) as SeqPos, isJoker: true },
-              { card: a, actingAs: a.rank as SeqPos, isJoker: false },
-              { card: b, actingAs: b.rank as SeqPos, isJoker: false },
-            ];
-          }
-          if (b.rank < RANK_HIGH) {
-            return [
-              { card: a, actingAs: a.rank as SeqPos, isJoker: false },
-              { card: b, actingAs: b.rank as SeqPos, isJoker: false },
-              { card: joker, actingAs: (b.rank + 1) as SeqPos, isJoker: true },
-            ];
-          }
-        } else if (b.rank - a.rank === 2) {
-          // Joker sits between a and b.
-          const joker = jokers[0];
-          return [
-            { card: a, actingAs: a.rank as SeqPos, isJoker: false },
-            { card: joker, actingAs: (a.rank + 1) as SeqPos, isJoker: true },
-            { card: b, actingAs: b.rank as SeqPos, isJoker: false },
-          ];
-        }
+// Additions to an existing team meld. Groups all natural extensions we can
+// make in one shot so the bot pumps the meld toward 7+ in one call.
+function findAdditionsForMeld(
+  hand: Card[],
+  meld: Meld,
+): PlayPlan['additions'][number] | null {
+  if (meld.kind === 'sequence') {
+    const suit = meld.suit;
+    const positions = new Set(meld.cards.map((c) => c.actingAs as number));
+    const min = Math.min(...positions);
+    const max = Math.max(...positions);
+    const additions: SequenceMeldCard[] = [];
+    // Consume same-suit naturals that extend either end contiguously.
+    const same = hand
+      .filter((c) => c.suit === suit && c.rank !== JOKER_RANK)
+      .sort((a, b) => a.rank - b.rank);
+    // Grow high end.
+    let highCursor = max;
+    for (const c of same) {
+      if (c.rank === highCursor + 1 && highCursor + 1 <= 13) {
+        additions.push({ card: c, actingAs: (highCursor + 1) as SeqPos, isJoker: false });
+        highCursor++;
       }
     }
+    // Grow low end.
+    let lowCursor = min;
+    // Include Ace-high (13→14) only via the high grow above.
+    // Iterate largest-to-smallest for low extension.
+    const usedIds = new Set(additions.map((a) => a.card.id));
+    for (const c of [...same].reverse()) {
+      if (usedIds.has(c.id)) continue;
+      if (c.rank === lowCursor - 1 && lowCursor - 1 >= 1) {
+        additions.push({ card: c, actingAs: (lowCursor - 1) as SeqPos, isJoker: false });
+        lowCursor--;
+      }
+    }
+    // Ace-high extension when meld tops out at K (13).
+    if (max === 13) {
+      const ace = hand.find((c) => c.suit === suit && c.rank === 1 && !usedIds.has(c.id));
+      if (ace) {
+        additions.push({ card: ace, actingAs: 14 as SeqPos, isJoker: false });
+      }
+    }
+    if (additions.length === 0) return null;
+    return { meldId: meld.id, kind: 'sequence', seqAdd: additions };
   }
-  return null;
+  // Triplet — add every natural card of the meld's rank.
+  const rank = meld.rank;
+  const naturals = hand.filter((c) => c.rank === rank);
+  if (naturals.length === 0) return null;
+  return {
+    meldId: meld.id,
+    kind: 'triplet',
+    tripAdd: naturals.map((c) => ({ card: c, isJoker: false })),
+  };
 }
 
-// Which cards in the current discard pile would combine with our hand into a
-// pure sequence? Returns the count of "hits" — higher is better for picking.
-function discardPileValueForHand(hand: Card[], pile: Card[]): number {
-  if (pile.length === 0) return 0;
-  // Cheap approximation: count pile cards that are within-1-rank of a same-suit
-  // card in our hand, or match our hand ranks (potential triplet).
+function buildPlayPlan(situation: Situation): PlayPlan {
+  const hand = situation.hand;
+  const bySuit = cardsBySuit(hand);
+  const jokers = hand.filter((c) => c.rank === JOKER_RANK);
+
+  const pureSequences: SequenceMeldCard[][] = [];
+  const impureSequences: SequenceMeldCard[][] = [];
+  for (const suit of ['H', 'D', 'C', 'S'] as Suit[]) {
+    for (const run of longestPureRuns(bySuit[suit])) {
+      pureSequences.push(runToPureAttempt(run));
+    }
+    if (jokers.length > 0) {
+      const impure = bestImpureSequenceForSuit(bySuit[suit], jokers);
+      if (impure) impureSequences.push(impure);
+    }
+  }
+  const triplets = findTriplets(hand);
+  const additions: PlayPlan['additions'] = [];
+  for (const meld of situation.myTeamMelds) {
+    const add = findAdditionsForMeld(hand, meld);
+    if (add) additions.push(add);
+  }
+  return { pureSequences, triplets, impureSequences, additions };
+}
+
+// ---------------- Move choosers -----------------------------------------
+
+// Would picking the discard pile immediately grant a meld? That's an
+// enormous swing, worth taking the whole pile for.
+function pileWouldCompleteMeld(hand: Card[], pile: Card[]): boolean {
+  if (pile.length === 0) return false;
+  const merged = [...hand, ...pile];
+  const bySuit = cardsBySuit(merged);
+  for (const suit of ['H', 'D', 'C', 'S'] as Suit[]) {
+    if (longestPureRuns(bySuit[suit]).length > 0) return true;
+  }
+  if (findTriplets(merged).length > 0) return true;
+  return false;
+}
+
+// Heuristic score for taking the pile — accounts for both value gain and
+// deadweight risk. Higher = more attractive.
+function scoreDiscardPile(hand: Card[], pile: Card[]): number {
+  if (pile.length === 0) return -Infinity;
+  if (pileWouldCompleteMeld(hand, pile)) return 100 + pile.length; // huge
   const bySuit: Record<Suit, Set<number>> = { H: new Set(), D: new Set(), C: new Set(), S: new Set() };
   const rankCounts: Record<number, number> = {};
   for (const c of hand) {
@@ -151,85 +320,210 @@ function discardPileValueForHand(hand: Card[], pile: Card[]): number {
   }
   let hits = 0;
   for (const c of pile) {
-    const sameSuit = bySuit[c.suit];
-    if (sameSuit.has(c.rank - 1) || sameSuit.has(c.rank + 1) || sameSuit.has(c.rank)) hits += 2;
-    if ((rankCounts[c.rank] ?? 0) >= 2) hits += 2; // instant triplet potential
+    const s = bySuit[c.suit];
+    if (s.has(c.rank - 1) || s.has(c.rank + 1)) hits += 2;
+    if (s.has(c.rank)) hits += 1;
+    if ((rankCounts[c.rank] ?? 0) >= 2) hits += 3; // triplet-completing pair
   }
-  return hits;
+  // Penalty grows with pile size (extra hand cards = extra deadweight risk).
+  return hits - Math.max(0, pile.length - 4) * 2;
 }
 
-// Cards to add to existing team melds. Returns the first opportunity found.
-type AddOp =
-  | { kind: 'sequence'; meldId: string; addition: SequenceMeldCard }
-  | { kind: 'triplet'; meldId: string; addition: TripletMeldCard };
+function pickDraw(situation: Situation, match: Match): MoveMessage {
+  const score = scoreDiscardPile(situation.hand, match.discard);
+  // Threshold — pile score of 6+ (a couple of real connections) is worth taking.
+  if (score >= 6 && match.discard.length > 0) {
+    return { type: 'move-pick-discard' };
+  }
+  return { type: 'move-draw-stock' };
+}
 
-function findAddition(hand: Card[], melds: Meld[]): AddOp | null {
-  for (const meld of melds) {
-    if (meld.kind === 'sequence') {
-      const positions = meld.cards.map((c) => c.actingAs);
-      const suit = meld.suit;
-      const minPos = Math.min(...positions);
-      const maxPos = Math.max(...positions);
-      // Extend low or high with a same-suit natural card of the required rank.
-      const need = [
-        { pos: minPos - 1, rank: minPos - 1 },
-        { pos: maxPos + 1, rank: maxPos + 1 },
-      ];
-      for (const n of need) {
-        if (n.pos < RANK_LOW || n.pos > 14) continue;
-        // Prefer a natural card whose rank == pos and matches suit.
-        const nat = hand.find((c) => c.suit === suit && c.rank === n.pos);
-        if (nat) {
-          return {
-            kind: 'sequence',
-            meldId: meld.id,
-            addition: { card: nat, actingAs: n.pos as SeqPos, isJoker: false },
-          };
-        }
+// ---------------- Meld phase --------------------------------------------
+
+// Decide the best meld/discard action. Returns exactly one MoveMessage.
+function pickMeldOrDiscard(
+  match: Match,
+  seat: PlayerId,
+  situation: Situation,
+): MoveMessage {
+  const plan = buildPlayPlan(situation);
+  const hand = situation.hand;
+
+  // ---------- Priority 1: grow an existing meld toward 7 -----------------
+  //
+  // If there's a team meld < 7 that we can extend, prefer that over dropping
+  // new stuff — a bigger meld earns bigger bonuses and unlocks closing.
+  const growth = plan.additions
+    .filter((a) => {
+      const meld = situation.myTeamMelds.find((m) => m.id === a.meldId)!;
+      const currentLen = meld.cards.length;
+      const addLen = (a.seqAdd?.length ?? 0) + (a.tripAdd?.length ?? 0);
+      return currentLen + addLen >= currentLen + 1 && currentLen < 13; // any real growth
+    })
+    .sort((a, b) => {
+      const aLen = (a.seqAdd?.length ?? 0) + (a.tripAdd?.length ?? 0);
+      const bLen = (b.seqAdd?.length ?? 0) + (b.tripAdd?.length ?? 0);
+      return bLen - aLen;
+    });
+
+  // We may only extend melds after the team's first drop (server enforces the
+  // first-drop-includes-a-pure-sequence rule anyway; be conservative).
+  const canAddToMelds = situation.myTeamMelds.length > 0;
+  if (canAddToMelds && growth.length > 0 && hand.length > 1) {
+    const first = growth[0];
+    const addLen = (first.seqAdd?.length ?? 0) + (first.tripAdd?.length ?? 0);
+    if (hand.length - addLen >= 1) {
+      if (first.kind === 'sequence' && first.seqAdd) {
+        return {
+          type: 'move-add-to-sequence',
+          input: { meldId: first.meldId, additions: first.seqAdd },
+        };
       }
-    } else {
-      // Triplet: add another card of the same rank (any suit).
-      const rank = meld.rank;
-      const nat = hand.find((c) => c.rank === rank);
-      if (nat) {
-        return { kind: 'triplet', meldId: meld.id, addition: { card: nat, isJoker: false } };
+      if (first.kind === 'triplet' && first.tripAdd) {
+        return {
+          type: 'move-add-to-triplet',
+          input: { meldId: first.meldId, additions: first.tripAdd },
+        };
       }
     }
   }
-  return null;
+
+  // ---------- Priority 2: first drop if we haven't done one --------------
+  //
+  // Must include a pure sequence. If team is past 1000, total ≥ 100.
+  if (!situation.firstDropDone) {
+    const pures = plan.pureSequences
+      .slice()
+      .sort((a, b) => b.length - a.length);
+    if (pures.length > 0) {
+      const seq = pures[0];
+      const total = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
+      const needs100 = situation.mustFirstDropReach100;
+      const meetsThreshold = !needs100 || total >= 100;
+      if (meetsThreshold && hand.length - seq.length >= 1) {
+        return {
+          type: 'move-drop-meld',
+          input: { kind: 'sequence', cards: seq },
+        };
+      }
+      // If we need ≥100 but a single seq isn't enough, drop it anyway —
+      // the server will validate on discard; the bot will then add more before
+      // discarding. But to keep it simple here, we still try.
+      if (hand.length - seq.length >= 1) {
+        return {
+          type: 'move-drop-meld',
+          input: { kind: 'sequence', cards: seq },
+        };
+      }
+    }
+  }
+
+  // ---------- Priority 3: drop new pure sequences ------------------------
+  const pures = plan.pureSequences
+    .slice()
+    .sort((a, b) => b.length - a.length);
+  if (pures.length > 0 && hand.length - pures[0].length >= 1) {
+    return { type: 'move-drop-meld', input: { kind: 'sequence', cards: pures[0] } };
+  }
+
+  // ---------- Priority 4: drop triplets (needs pure in box) --------------
+  if (situation.hasPureInBox) {
+    const trips = plan.triplets.slice().sort((a, b) => b.length - a.length);
+    if (trips.length > 0 && hand.length - trips[0].length >= 1) {
+      return { type: 'move-drop-meld', input: { kind: 'triplet', cards: trips[0] } };
+    }
+  }
+
+  // ---------- Priority 5: impure sequences -------------------------------
+  //
+  // Only after the team has committed a pure sequence (impure can't satisfy
+  // the pure-sequence-first-drop rule).
+  if (situation.hasPureInBox) {
+    const impures = plan.impureSequences.slice().sort((a, b) => b.length - a.length);
+    if (impures.length > 0 && hand.length - impures[0].length >= 1) {
+      return { type: 'move-drop-meld', input: { kind: 'sequence', cards: impures[0] } };
+    }
+  }
+
+  // ---------- Priority 6: discard ---------------------------------------
+  const recent = match.discard.slice(-4);
+  const discardId = pickCardToDiscard(hand, situation, recent);
+  return { type: 'move-discard', cardId: discardId };
 }
 
-// Discard heuristic: prefer cards that are isolated in our hand, high value,
-// and not adjacent to what opponents just discarded (avoid feeding them).
-function pickCardToDiscard(hand: Card[], recentDiscards: Card[]): string {
+// Which card of the hand should we throw? A card is a good discard when it
+// contributes nothing to any partial meld and doesn't feed an opponent.
+function pickCardToDiscard(
+  hand: Card[],
+  situation: Situation,
+  recentDiscards: Card[],
+): string {
   const bySuit: Record<Suit, Card[]> = { H: [], D: [], C: [], S: [] };
   for (const c of hand) bySuit[c.suit].push(c);
   for (const arr of Object.values(bySuit)) arr.sort((a, b) => a.rank - b.rank);
   const rankCounts: Record<number, number> = {};
   for (const c of hand) rankCounts[c.rank] = (rankCounts[c.rank] ?? 0) + 1;
 
-  // Isolated = no same-suit neighbour within ±2 ranks, and no other copy of
-  // the same rank (no potential triplet).
-  function isIsolated(c: Card): boolean {
-    if (c.rank === JOKER_RANK) return false;
-    const near = (bySuit[c.suit] ?? []).some(
+  // 2s are basically never discarded — they're precious jokers.
+  const nonJokers = hand.filter((c) => c.rank !== JOKER_RANK);
+
+  // Card fits a partial run if there's another same-suit card within ±2 ranks.
+  function isConnected(c: Card): boolean {
+    return (bySuit[c.suit] ?? []).some(
       (o) => o.id !== c.id && Math.abs(o.rank - c.rank) <= 2,
     );
-    if (near) return false;
-    if ((rankCounts[c.rank] ?? 0) >= 2) return false;
-    return true;
+  }
+  // Card fits a partial triplet if we hold another copy of the same rank.
+  function pairsToTriplet(c: Card): boolean {
+    return (rankCounts[c.rank] ?? 0) >= 2;
+  }
+  // Card extends an existing team sequence (same suit, adjacent rank).
+  function extendsMyMeld(c: Card): boolean {
+    for (const m of situation.myTeamMelds) {
+      if (m.kind === 'sequence' && m.suit === c.suit) {
+        const positions = m.cards.map((cc) => cc.actingAs as number);
+        const min = Math.min(...positions), max = Math.max(...positions);
+        if (c.rank === min - 1 || c.rank === max + 1) return true;
+        if (c.rank === 1 && max === 13) return true;
+      } else if (m.kind === 'triplet' && m.rank === c.rank) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  // Also avoid dumping a card the opponents were just discarding — if opponents
-  // threw ranks R±1, they might want R.
-  const recentRanks = new Set<number>(recentDiscards.map((c) => c.rank as number));
+  // Score = higher means worse to discard (more useful to us).
+  function keepScore(c: Card): number {
+    let s = 0;
+    if (isConnected(c)) s += 3;
+    if (pairsToTriplet(c)) s += 4;
+    if (extendsMyMeld(c)) s += 6;
+    return s;
+  }
 
-  const candidates = hand.filter((c) => c.rank !== JOKER_RANK).sort((a, b) => cardValue(b.rank) - cardValue(a.rank));
-  const isolated = candidates.filter(isIsolated);
-  // Prefer isolated cards, then those not near recent opponent discards.
-  const safe = isolated.filter((c) => !recentRanks.has(c.rank + 1) && !recentRanks.has(c.rank - 1));
-  const pick = safe[0] ?? isolated[0] ?? candidates[0] ?? hand[0];
-  return pick.id;
+  // Feeding opponents — if opponents just discarded ranks adjacent to c, they
+  // may want it. Subtract a bit for "safe" cards.
+  const recentRanks = new Set<number>(recentDiscards.map((c) => c.rank as number));
+  function feedsOpponent(c: Card): boolean {
+    return recentRanks.has(c.rank + 1) || recentRanks.has(c.rank - 1) || recentRanks.has(c.rank);
+  }
+
+  const scored = nonJokers.map((c) => ({
+    c,
+    keep: keepScore(c),
+    val: cardValue(c.rank),
+    feeds: feedsOpponent(c),
+  }));
+
+  // Sort: lowest keep first, then not-feeding-opponent, then highest value
+  // (dumping face cards helps the opponent-penalty when they hold them, and
+  // reduces our own hand risk if we get caught with them).
+  scored.sort((a, b) => {
+    if (a.keep !== b.keep) return a.keep - b.keep;
+    if (a.feeds !== b.feeds) return a.feeds ? 1 : -1;
+    return b.val - a.val;
+  });
+  return (scored[0]?.c ?? nonJokers[0] ?? hand[0]).id;
 }
 
 // ---------------- Main entry --------------------------------------------
@@ -238,72 +532,9 @@ export function pickBotMove(match: Match, seat: PlayerId): MoveMessage | null {
   if (match.phase !== 'playing') return null;
   if (match.currentTurn !== seat) return null;
 
-  const teamId = TEAM_OF[seat];
-  const team = match.teams[teamId];
-  const hand = match.players[seat].hand;
+  const situation = readSituation(match, seat);
 
-  // ---- Awaiting draw --------------------------------------------------
-  if (match.turnPhase === 'awaiting-draw') {
-    const discardHits = discardPileValueForHand(hand, match.discard);
-    // Rough rule: picking the pile is worth it if the pile has strong synergy
-    // and isn't too big to inflate our hand.
-    const cost = match.discard.length; // more cards = more risk of leftover deadweight
-    if (discardHits >= cost + 3 && match.discard.length > 0) {
-      return { type: 'move-pick-discard' };
-    }
-    return { type: 'move-draw-stock' };
-  }
-
-  // ---- May meld ------------------------------------------------------
-  if (match.turnPhase === 'may-meld') {
-    const hasPureInBox = team.sequenceBox.some(isPureSequence);
-    const boxEmpty = team.sequenceBox.length === 0;
-
-    // 1. Try to drop a pure sequence, especially if team hasn't got one.
-    const pures = findPureSequences(hand).sort((a, b) => b.length - a.length);
-    if (pures.length > 0 && hand.length > pures[0].length) {
-      // Check the drop wouldn't leave us with 0 cards (need 1 for discard).
-      return { type: 'move-drop-meld', input: { kind: 'sequence', cards: pures[0] } };
-    }
-
-    // 2. If team has a pure sequence, drop triplets.
-    if (hasPureInBox) {
-      const trips = findTriplets(hand).sort((a, b) => b.length - a.length);
-      if (trips.length > 0 && hand.length > trips[0].length) {
-        return { type: 'move-drop-meld', input: { kind: 'triplet', cards: trips[0] } };
-      }
-    }
-
-    // 3. Try an impure sequence (using a joker) if we still have hand left.
-    // Only if team already has a pure sequence — otherwise our first drop
-    // must be pure.
-    if (hasPureInBox || !boxEmpty) {
-      const impure = findImpureSequence(hand);
-      if (impure && hand.length > impure.length) {
-        return { type: 'move-drop-meld', input: { kind: 'sequence', cards: impure } };
-      }
-    }
-
-    // 4. Add cards to existing team melds.
-    const addOp = findAddition(hand, team.sequenceBox);
-    if (addOp && hand.length > 1) {
-      if (addOp.kind === 'sequence') {
-        return {
-          type: 'move-add-to-sequence',
-          input: { meldId: addOp.meldId, additions: [addOp.addition] },
-        };
-      }
-      return {
-        type: 'move-add-to-triplet',
-        input: { meldId: addOp.meldId, additions: [addOp.addition] },
-      };
-    }
-
-    // 5. Discard. Take the last few discarded cards as "recent opponents".
-    const recent = match.discard.slice(-4);
-    return { type: 'move-discard', cardId: pickCardToDiscard(hand, recent) };
-  }
-
+  if (match.turnPhase === 'awaiting-draw') return pickDraw(situation, match);
+  if (match.turnPhase === 'may-meld') return pickMeldOrDiscard(match, seat, situation);
   return null;
 }
-

@@ -405,7 +405,7 @@ describe('discard and turn flow', () => {
     }
   });
 
-  it('cannot close without a 7+ card sequence', () => {
+  it('cannot close without a 7+ card meld', () => {
     let m = craftMatch({ turnPhase: 'may-meld' });
     m = withHand(m, 0, [H(9)]);
     m = {
@@ -436,7 +436,7 @@ describe('discard and turn flow', () => {
     const r = discard(m, 'H9a');
     expect(r.ok).toBe(false);
     if (!r.ok) {
-      expect(r.reason).toMatch(/7-card sequence/);
+      expect(r.reason).toMatch(/7-card meld/);
     }
   });
 

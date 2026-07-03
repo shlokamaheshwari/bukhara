@@ -412,15 +412,13 @@ export function discard(match: Match, cardId: string): MoveResult {
       return { ok: true, match: next };
     } else {
       // Match closes — but only if the team has completed at least one 7+ card
-      // sequence (a "ganastha"). Without it, you're not allowed to close.
+      // meld (a "ganastha"). Sequence or triplet, pure or impure, either counts.
       const teamBox = next.teams[team.id].sequenceBox;
-      const hasFullSequence = teamBox.some(
-        (m) => m.kind === 'sequence' && m.cards.length >= 7,
-      );
-      if (!hasFullSequence) {
+      const hasFullMeld = teamBox.some((m) => m.cards.length >= 7);
+      if (!hasFullMeld) {
         return {
           ok: false,
-          reason: 'Cannot close: your team needs at least one 7-card sequence first',
+          reason: 'Cannot close: your team needs at least one 7-card meld first',
         };
       }
       next = {
