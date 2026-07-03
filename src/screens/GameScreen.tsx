@@ -302,12 +302,19 @@ export default function GameScreen(props: GameScreenProps = {}) {
       <header className="topbar">
         <h1>Bukhara</h1>
         <div className="scores">
-          <div className={`score-chip team-a`}>
-            Team A · {game.teams.A.totalScore}
-          </div>
-          <div className={`score-chip team-b`}>
-            Team B · {game.teams.B.totalScore}
-          </div>
+          {(['A', 'B'] as const).map((t) => {
+            const meldPts = match.teams[t].sequenceBox.reduce(
+              (s, m) => s + meldCardTotal(m) + meldSizeBonus(m),
+              0,
+            );
+            return (
+              <div key={t} className={`score-chip team-${t.toLowerCase()}`}>
+                <span className="score-chip-team">Team {t}</span>
+                <span className="score-chip-total">{game.teams[t].totalScore}</span>
+                <span className="score-chip-meld">+{meldPts} meld</span>
+              </div>
+            );
+          })}
           <div className="match-chip">Match {match.matchNumber}</div>
           {game.winner && <div className="winner-chip">🏆 Team {game.winner}</div>}
           <button className="minor" onClick={onNewGame}>New game</button>
@@ -327,23 +334,6 @@ export default function GameScreen(props: GameScreenProps = {}) {
               Taken by {match.players[match.bhukaraTakenBy].name}
             </div>
           )}
-          {/* Live meld totals — cards + size bonuses, no held-card penalty. */}
-          <div className="meld-tally">
-            <div className="meld-tally-title">Meld totals</div>
-            {(['A', 'B'] as const).map((t) => {
-              const box = match.teams[t].sequenceBox;
-              const points = box.reduce(
-                (s, m) => s + meldCardTotal(m) + meldSizeBonus(m),
-                0,
-              );
-              return (
-                <div key={t} className={`meld-tally-row team-${t.toLowerCase()}`}>
-                  <span className="meld-tally-team">Team {t}</span>
-                  <span className="meld-tally-pts">{points}</span>
-                </div>
-              );
-            })}
-          </div>
         </div>
         {/* Seats rotate so the current player is always at the bottom.
             Clockwise order from bottom: bottom → right → top → left. */}

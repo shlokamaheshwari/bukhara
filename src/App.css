@@ -577,46 +577,26 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   .chat-toggle { width: 40px; height: 40px; font-size: 18px; }
 }
 
-/* Live meld totals shown next to the Bukhara pile. */
-.meld-tally {
-  margin-top: 14px;
-  padding: 10px 12px;
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  background: rgba(255,255,255,0.04);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 120px;
-}
-.meld-tally-title {
+/* Score chip in the top bar — team label, running total, and current
+   meld tally so you can see live progress at a glance. */
+.score-chip { display: inline-flex; align-items: baseline; gap: 8px; }
+.score-chip-team { font-weight: 600; letter-spacing: 0.3px; }
+.score-chip-total {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 4px;
-}
-.meld-tally-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  padding: 3px 0;
-}
-.meld-tally-team {
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-.meld-tally-row.team-a .meld-tally-team { color: #E86A4C; }
-.meld-tally-row.team-b .meld-tally-team { color: #5A8FB8; }
-.meld-tally-pts {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
+.score-chip-meld {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+}
+[data-theme="dark"] .score-chip-meld { background: rgba(244, 237, 221, 0.08); }
 
 /* Theme toggle floats top-right on every screen */
 .theme-toggle {
