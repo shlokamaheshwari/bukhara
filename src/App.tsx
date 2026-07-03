@@ -12,36 +12,84 @@ import type {
 } from './net/messages';
 import './App.css';
 
-// Applies "light" or "dark" to <html data-theme=...>. Persisted in localStorage.
-type Theme = 'light' | 'dark';
-const THEME_KEY = 'bhukara-theme';
+// Two dimensions:
+//   pack — which visual pack (Editorial mountains vs House of the Dragon)
+//   mode — light or dark within that pack
+// The composite value drives the html data-theme attribute. Legacy values
+// "light" and "dark" are treated as editorial-light / editorial-dark for
+// backward compatibility with saved preferences.
+type ThemePack = 'editorial' | 'hotd';
+type ThemeMode = 'light' | 'dark';
+const THEME_PACK_KEY = 'bhukara-theme-pack';
+const THEME_MODE_KEY = 'bhukara-theme-mode';
+const LEGACY_THEME_KEY = 'bhukara-theme';
 
-function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = useState<Theme>(() => {
+function themeAttr(pack: ThemePack, mode: ThemeMode): string {
+  return pack === 'editorial' ? mode : `${pack}-${mode}`;
+}
+
+function useTheme(): {
+  pack: ThemePack;
+  mode: ThemeMode;
+  toggleMode: () => void;
+  togglePack: () => void;
+} {
+  const [pack, setPack] = useState<ThemePack>(() => {
+    if (typeof window === 'undefined') return 'editorial';
+    const saved = localStorage.getItem(THEME_PACK_KEY);
+    return saved === 'hotd' ? 'hotd' : 'editorial';
+  });
+  const [mode, setMode] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return 'light';
-    const saved = localStorage.getItem(THEME_KEY);
+    const saved = localStorage.getItem(THEME_MODE_KEY) ?? localStorage.getItem(LEGACY_THEME_KEY);
     if (saved === 'light' || saved === 'dark') return saved;
-    // Default to system preference on first load.
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-  return [theme, () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))];
+    document.documentElement.setAttribute('data-theme', themeAttr(pack, mode));
+    localStorage.setItem(THEME_PACK_KEY, pack);
+    localStorage.setItem(THEME_MODE_KEY, mode);
+  }, [pack, mode]);
+  return {
+    pack,
+    mode,
+    toggleMode: () => setMode((m) => (m === 'light' ? 'dark' : 'light')),
+    togglePack: () => setPack((p) => (p === 'editorial' ? 'hotd' : 'editorial')),
+  };
 }
 
-function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
+function ThemeToggles({
+  pack, mode, onToggleMode, onTogglePack,
+}: {
+  pack: ThemePack;
+  mode: ThemeMode;
+  onToggleMode: () => void;
+  onTogglePack: () => void;
+}) {
+  const packLabel = pack === 'editorial' ? 'Editorial' : 'House of the Dragon';
+  const nextPack = pack === 'editorial' ? 'House of the Dragon' : 'Editorial';
   return (
-    <button
-      className="theme-toggle"
-      onClick={onToggle}
-      title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-      aria-label="Toggle theme"
-      type="button"
-    >
-      {theme === 'light' ? '☾' : '☀'}
-    </button>
+    <div className="theme-controls">
+      <button
+        className="theme-pack-toggle"
+        onClick={onTogglePack}
+        title={`Switch to ${nextPack}`}
+        aria-label={`Current theme ${packLabel}. Click to switch.`}
+        type="button"
+      >
+        {pack === 'editorial' ? '⛰' : '🐉'}
+        <span className="theme-pack-label">{pack === 'editorial' ? 'Editorial' : 'HotD'}</span>
+      </button>
+      <button
+        className="theme-toggle"
+        onClick={onToggleMode}
+        title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        aria-label="Toggle light/dark mode"
+        type="button"
+      >
+        {mode === 'light' ? '☾' : '☀'}
+      </button>
+    </div>
   );
 }
 
@@ -57,7 +105,7 @@ type Auth = { token: string; username: string; displayName: string };
 const AUTH_STORAGE_KEY = 'bhukara-auth';
 
 export default function App() {
-  const [theme, toggleTheme] = useTheme();
+  const { pack, mode, toggleMode, togglePack } = useTheme();
   const [auth, setAuth] = useState<Auth | null>(null);
   const [checking, setChecking] = useState(true);
   const [roomCode, setRoomCode] = useState<string | null>(null);
@@ -153,7 +201,14 @@ export default function App() {
   }
 
   // Every screen carries the theme toggle in the top-right corner.
-  const toggle = <ThemeToggle theme={theme} onToggle={toggleTheme} />;
+  const toggle = (
+    <ThemeToggles
+      pack={pack}
+      mode={mode}
+      onToggleMode={toggleMode}
+      onTogglePack={togglePack}
+    />
+  );
 
   // Reactions overlay floats over every screen once we're connected.
   const reactionsLayer = (

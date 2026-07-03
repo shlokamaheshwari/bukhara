@@ -70,6 +70,97 @@
   --success:      #A9C9B4;
 }
 
+/* =============================================================
+   Bhukara — "House of the Dragon" aesthetic (Theme 07)
+   Backdrop: parchment court by day / obsidian throne room by night.
+   Team A wears Hightower green + Aegon's gold.
+   Team B wears Targaryen black + Caraxes red.
+   Cinzel display, Baskerville body, Copperplate labels.
+   ============================================================= */
+[data-theme="hotd-light"] {
+  --bg-image: url('/hotd-light.png');
+  --text-primary: #221D14;
+  --text-dim:     rgba(34, 29, 20, 0.65);
+  --text-faint:   rgba(34, 29, 20, 0.4);
+  --panel-bg:     rgba(255, 251, 240, 0.55);
+  --panel-bg-strong: rgba(255, 251, 240, 0.78);
+  --panel-border: rgba(107, 15, 15, 0.16);
+  --panel-highlight: rgba(255, 255, 255, 0.6);
+  --panel-shadow: 0 12px 44px rgba(107, 15, 15, 0.18);
+  --input-bg:     rgba(255, 251, 240, 0.5);
+  --input-border: rgba(107, 15, 15, 0.22);
+  --input-focus:  #B21B1B;
+  --accent:       #6B0F0F;
+  --accent-alt:   #0E3D2E;
+  --card-face:    #FBF6E3;
+  --card-back:    #0E3D2E;
+  --team-a:       #0E3D2E;
+  --team-b:       #B21B1B;
+  --divider:      rgba(107, 15, 15, 0.14);
+  --danger:       #B21B1B;
+  --success:      #0E3D2E;
+}
+[data-theme="hotd-dark"] {
+  --bg-image: url('/hotd-dark.png');
+  --text-primary: #E8DFCC;
+  --text-dim:     rgba(232, 223, 204, 0.7);
+  --text-faint:   rgba(232, 223, 204, 0.4);
+  --panel-bg:     rgba(20, 17, 15, 0.55);
+  --panel-bg-strong: rgba(20, 17, 15, 0.82);
+  --panel-border: rgba(201, 163, 78, 0.22);
+  --panel-highlight: rgba(255, 255, 255, 0.08);
+  --panel-shadow: 0 16px 50px rgba(0, 0, 0, 0.55);
+  --input-bg:     rgba(20, 17, 15, 0.5);
+  --input-border: rgba(201, 163, 78, 0.2);
+  --input-focus:  #FF4D30;
+  --accent:       #B21B1B;
+  --accent-alt:   #C9A34E;
+  --card-face:    #F5EED9;
+  --card-back:    #6B0F0F;
+  --team-a:       #7EBC91;
+  --team-b:       #F58A5C;
+  --divider:      rgba(232, 223, 204, 0.14);
+  --danger:       #FF4D30;
+  --success:      #7EBC91;
+}
+
+/* HotD-specific display overrides — Cinzel carved capitals for headings,
+   and wider tracking on team-name labels. Body keeps Inter for
+   readability; only display faces shift. */
+[data-theme^="hotd"] .topbar h1,
+[data-theme^="hotd"] .theme-h1,
+[data-theme^="hotd"] .modal-content h2,
+[data-theme^="hotd"] .modal-content h3,
+[data-theme^="hotd"] .match-end-modal h2,
+[data-theme^="hotd"] .team-name,
+[data-theme^="hotd"] .bhukara-modal-name,
+[data-theme^="hotd"] .announcement-text {
+  font-family: 'Cinzel', 'Trajan Pro', 'Copperplate Gothic Bold', 'Baskerville Old Face', Georgia, serif;
+  letter-spacing: 0.06em;
+}
+[data-theme^="hotd"] .topbar h1 {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+[data-theme^="hotd"] .score-chip {
+  font-family: 'Cinzel', 'Trajan Pro', 'Copperplate', Georgia, serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+[data-theme^="hotd"] .turn-status {
+  font-family: 'Cinzel', 'Trajan Pro', 'Copperplate', Georgia, serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+[data-theme^="hotd"] .meld-strip-label,
+[data-theme^="hotd"] .team-box-header,
+[data-theme^="hotd"] .pile-label,
+[data-theme^="hotd"] .hand-label {
+  font-family: 'Copperplate Gothic', 'Copperplate', 'Cinzel', 'Trajan Pro', Georgia, serif;
+  letter-spacing: 0.20em;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -578,15 +669,20 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
 }
 
 
-/* Theme toggle floats top-right on every screen */
-.theme-toggle {
+/* Theme controls float top-right: pack toggle (Editorial ⛰ / HotD 🐉) sits
+   next to the light/dark mode toggle. Both share the glassmorphism style. */
+.theme-controls {
   position: fixed;
   top: 20px;
   right: 20px;
   z-index: 500;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.theme-toggle,
+.theme-pack-toggle {
+  border-radius: 999px;
   background: var(--panel-bg-strong);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
@@ -594,13 +690,36 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   box-shadow: inset 0 1px 0 var(--panel-highlight), 0 6px 20px rgba(0, 0, 0, 0.15);
   color: var(--text-primary);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
   transition: transform 0.2s;
+  font-family: inherit;
 }
-.theme-toggle:hover { transform: scale(1.06); }
+.theme-toggle {
+  width: 44px;
+  height: 44px;
+}
+.theme-pack-toggle {
+  gap: 8px;
+  padding: 0 14px;
+  height: 44px;
+  font-size: 16px;
+}
+.theme-pack-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+[data-theme^="hotd"] .theme-pack-label {
+  font-family: 'Cinzel', 'Trajan Pro', 'Copperplate', Georgia, serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.theme-toggle:hover,
+.theme-pack-toggle:hover { transform: scale(1.06); }
 
 /* ============ Table grid ============ */
 .table {
@@ -1763,13 +1882,23 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   .match-chip { padding: 4px 10px; font-size: 10px; }
   button.minor { padding: 5px 10px; font-size: 10px; }
 
+  .theme-controls {
+    top: 12px;
+    right: 12px;
+    gap: 6px;
+  }
   .theme-toggle {
     width: 36px;
     height: 36px;
-    top: 12px;
-    right: 12px;
     font-size: 15px;
   }
+  .theme-pack-toggle {
+    height: 36px;
+    padding: 0 10px;
+    font-size: 14px;
+    gap: 6px;
+  }
+  .theme-pack-label { font-size: 10px; }
 
   /* Table — collapse to a vertical stack. */
   .table {
