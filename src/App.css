@@ -1983,6 +1983,31 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
 /* Landing */
 .landing-greet { color: var(--text-primary); text-align: center; margin: 0 0 24px; font-family: 'Fraunces', serif; font-size: 16px; }
 .landing-greet strong { color: var(--accent); font-weight: 600; font-size: 22px; font-style: italic; }
+.landing-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  margin: 0 0 20px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 42%, transparent);
+  color: var(--danger);
+  border-radius: 8px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.landing-error > span { flex: 1; }
+.landing-error-dismiss {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.75;
+}
+.landing-error-dismiss:hover { opacity: 1; }
 .landing-primary {
   width: 100%;
   padding: 14px;

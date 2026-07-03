@@ -16,10 +16,14 @@ export default function LandingScreen({
   displayName,
   onEnterRoom,
   onSignOut,
+  errorMessage,
+  onDismissError,
 }: {
   displayName: string;
   onEnterRoom: (roomCode: string) => void;
   onSignOut: () => void;
+  errorMessage?: string | null;
+  onDismissError?: () => void;
 }) {
   const [joinCode, setJoinCode] = useState('');
   return (
@@ -27,6 +31,19 @@ export default function LandingScreen({
       <div className="landing-panel">
         <h1 className="auth-logo">Bukhara</h1>
         <p className="landing-greet">Welcome, <strong>{displayName}</strong></p>
+        {errorMessage && (
+          <div className="landing-error" role="alert">
+            <span>{errorMessage}</span>
+            <button
+              type="button"
+              className="landing-error-dismiss"
+              onClick={onDismissError}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         <button
           className="landing-primary"

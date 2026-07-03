@@ -46,6 +46,11 @@ export type ReactionMessage = {
   at: number; // server timestamp so clients can dedupe / order
 };
 
+export type RoomLockedMessage = {
+  type: 'room-locked';
+  reason: string;
+};
+
 export type ChatMessage = {
   type: 'chat-message';
   id: string;
@@ -56,7 +61,7 @@ export type ChatMessage = {
   at: number;
 };
 
-export type ServerMessage = RoomStateMessage | GameStateMessage | MoveRejectedMessage | ReactionMessage | ChatMessage;
+export type ServerMessage = RoomStateMessage | GameStateMessage | MoveRejectedMessage | ReactionMessage | ChatMessage | RoomLockedMessage;
 
 // ---- Client → server ---------------------------------------------------
 

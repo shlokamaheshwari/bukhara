@@ -133,6 +133,7 @@ export default function App() {
   >([]);
   const [chatUnread, setChatUnread] = useState(0);
   const [chatOpen, setChatOpen] = useState(false);
+  const [landingError, setLandingError] = useState<string | null>(null);
   const sendRef = useRef<((msg: ClientMessage) => void) | null>(null);
 
   // Verify a saved token on first load.
@@ -167,6 +168,12 @@ export default function App() {
       if (msg.type === 'room-state') setRoomState(msg);
       else if (msg.type === 'game-state') setGameState(msg);
       else if (msg.type === 'move-rejected') setMoveError(msg.reason);
+      else if (msg.type === 'room-locked') {
+        setLandingError(msg.reason);
+        setRoomCode(null);
+        setRoomState(null);
+        setGameState(null);
+      }
       else if (msg.type === 'reaction') {
         const id = Date.now() + Math.floor(Math.random() * 10000);
         setReactions((r) => [...r, { id, emoji: msg.emoji, from: msg.fromDisplayName, seat: msg.fromSeat }]);
@@ -276,8 +283,10 @@ export default function App() {
         {toggle}
         <LandingScreen
           displayName={auth.displayName}
-          onEnterRoom={onEnterRoom}
+          onEnterRoom={(code) => { setLandingError(null); onEnterRoom(code); }}
           onSignOut={onSignOut}
+          errorMessage={landingError}
+          onDismissError={() => setLandingError(null)}
         />
       </>
     );

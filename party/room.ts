@@ -114,13 +114,35 @@ export class RoomDO extends DurableObject<Env> {
     const match = url.pathname.match(/\/parties\/main\/([^/]+)/);
     if (match) this.roomCode = match[1].toLowerCase();
 
+    // Room-locking: once the game is under way, only usernames who were
+    // already seated (or otherwise present) when it started can rejoin.
+    // Random players who happen to have the invite code can't hop in
+    // mid-game — they get a room-locked message on connect and get closed.
+    const rosterHas = [...this.presences.values()].some((p) => p.username === username);
+    const isLockedOut = this.started && !rosterHas;
+
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
     server.accept();
     const connId = crypto.randomUUID();
-    this.connections.set(connId, server);
 
+    if (isLockedOut) {
+      // Send the rejection message, then close on the next tick so the
+      // frame lands before the client sees the close.
+      try {
+        server.send(JSON.stringify({
+          type: 'room-locked',
+          reason: 'This room is in progress and only its original players can rejoin.',
+        }));
+      } catch { /* ignore */ }
+      setTimeout(() => {
+        try { server.close(4003, 'room locked'); } catch { /* ignore */ }
+      }, 50);
+      return new Response(null, { status: 101, webSocket: client });
+    }
+
+    this.connections.set(connId, server);
     this.onConnect(connId, username, displayName);
 
     server.addEventListener('message', (event) => {
