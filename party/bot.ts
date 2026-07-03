@@ -341,6 +341,8 @@ function pickDraw(situation: Situation, match: Match): MoveMessage {
 // ---------------- Meld phase --------------------------------------------
 
 // Decide the best meld/discard action. Returns exactly one MoveMessage.
+// The server calls this repeatedly (drop → add → add → discard) so each
+// invocation re-plans from current state.
 function pickMeldOrDiscard(
   match: Match,
   seat: PlayerId,
@@ -349,110 +351,215 @@ function pickMeldOrDiscard(
   const plan = buildPlayPlan(situation);
   const hand = situation.hand;
 
-  // ---------- Priority 1: grow an existing meld toward 7 -----------------
-  //
-  // If there's a team meld < 7 that we can extend, prefer that over dropping
-  // new stuff — a bigger meld earns bigger bonuses and unlocks closing.
-  const growth = plan.additions
-    .filter((a) => {
-      const meld = situation.myTeamMelds.find((m) => m.id === a.meldId)!;
-      const currentLen = meld.cards.length;
-      const addLen = (a.seqAdd?.length ?? 0) + (a.tripAdd?.length ?? 0);
-      return currentLen + addLen >= currentLen + 1 && currentLen < 13; // any real growth
-    })
-    .sort((a, b) => {
-      const aLen = (a.seqAdd?.length ?? 0) + (a.tripAdd?.length ?? 0);
-      const bLen = (b.seqAdd?.length ?? 0) + (b.tripAdd?.length ?? 0);
-      return bLen - aLen;
-    });
+  // Two situational flags shape strategy:
+  //   endgame — hand is small enough that we should push toward closing rather
+  //             than build slowly; also fires when an opponent is very close.
+  //   racing  — either team has taken bhukara; the pace has picked up and small
+  //             melds become worthwhile because closing is imminent.
+  const endgame =
+    hand.length <= 5 || situation.oppMinHand <= 4 || situation.stockRemaining <= 10;
+  const racing = situation.bhukaraTaken;
 
-  // We may only extend melds after the team's first drop (server enforces the
-  // first-drop-includes-a-pure-sequence rule anyway; be conservative).
-  const canAddToMelds = situation.myTeamMelds.length > 0;
-  if (canAddToMelds && growth.length > 0 && hand.length > 1) {
-    const first = growth[0];
-    const addLen = (first.seqAdd?.length ?? 0) + (first.tripAdd?.length ?? 0);
-    if (hand.length - addLen >= 1) {
-      if (first.kind === 'sequence' && first.seqAdd) {
+  // ---------- Priority 0: race to close ----------------------------------
+  //
+  // If bhukara is already with us and we have a ganastha, aggressively try to
+  // empty hand — every drop reduces the penalty pool and lets us close on
+  // discard.
+  if (situation.bhukaraMine && situation.hasFullMeld) {
+    const drop = pickBestDrop(plan, situation, hand, /* aggressive */ true);
+    if (drop) return drop;
+  }
+
+  // ---------- Priority 1: ganastha jump ---------------------------------
+  //
+  // Any addition that pushes a team meld across 7 cards is our best move. It
+  // unlocks closing, harvests the size bonus (100 or 200), and locks value we
+  // can't lose. Prefer the addition that reaches the highest final size.
+  const jumpAdd = pickGanasthaJump(plan, situation, hand);
+  if (jumpAdd) return jumpAdd;
+
+  // ---------- Priority 2: satisfy first-drop rule ------------------------
+  //
+  // Team's first drop must include a pure sequence, and (if past 1000) total
+  // ≥100 pts. Delay unless we have a decent one so we don't burn a 3-card
+  // sequence prematurely.
+  if (!situation.firstDropDone) {
+    const firstDrop = pickFirstDrop(plan, situation, hand);
+    if (firstDrop) return firstDrop;
+    // No adequate first-drop candidate → skip to discarding cleverly.
+  }
+
+  // ---------- Priority 3: extend existing team melds --------------------
+  //
+  // Any real growth on a team meld is valuable — it locks card value and
+  // steadily reduces our hand.
+  if (situation.myTeamMelds.length > 0) {
+    const growth = plan.additions
+      .slice()
+      .sort((a, b) => additionLen(b) - additionLen(a));
+    for (const g of growth) {
+      const addLen = additionLen(g);
+      if (addLen === 0) continue;
+      if (hand.length - addLen < 1) continue;
+      if (g.kind === 'sequence' && g.seqAdd) {
         return {
           type: 'move-add-to-sequence',
-          input: { meldId: first.meldId, additions: first.seqAdd },
+          input: { meldId: g.meldId, additions: g.seqAdd },
         };
       }
-      if (first.kind === 'triplet' && first.tripAdd) {
+      if (g.kind === 'triplet' && g.tripAdd) {
         return {
           type: 'move-add-to-triplet',
-          input: { meldId: first.meldId, additions: first.tripAdd },
+          input: { meldId: g.meldId, additions: g.tripAdd },
         };
       }
     }
   }
 
-  // ---------- Priority 2: first drop if we haven't done one --------------
+  // ---------- Priority 4: drop new melds --------------------------------
   //
-  // Must include a pure sequence. If team is past 1000, total ≥ 100.
-  if (!situation.firstDropDone) {
-    const pures = plan.pureSequences
-      .slice()
-      .sort((a, b) => b.length - a.length);
-    if (pures.length > 0) {
-      const seq = pures[0];
-      const total = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
-      const needs100 = situation.mustFirstDropReach100;
-      const meetsThreshold = !needs100 || total >= 100;
-      if (meetsThreshold && hand.length - seq.length >= 1) {
-        return {
-          type: 'move-drop-meld',
-          input: { kind: 'sequence', cards: seq },
-        };
-      }
-      // If we need ≥100 but a single seq isn't enough, drop it anyway —
-      // the server will validate on discard; the bot will then add more before
-      // discarding. But to keep it simple here, we still try.
-      if (hand.length - seq.length >= 1) {
-        return {
-          type: 'move-drop-meld',
-          input: { kind: 'sequence', cards: seq },
-        };
-      }
-    }
-  }
+  // In build mode we require size ≥ 4 for pure sequences (a 3-run tends to be
+  // extendable next turn from stock or discards; keeping it in hand keeps
+  // options open). In endgame or racing mode we accept 3-card drops because
+  // speed matters more than sizing.
+  const minPure = endgame || racing ? 3 : 4;
+  const drop = pickBestDrop(plan, situation, hand, /* aggressive */ endgame, minPure);
+  if (drop) return drop;
 
-  // ---------- Priority 3: drop new pure sequences ------------------------
-  const pures = plan.pureSequences
-    .slice()
-    .sort((a, b) => b.length - a.length);
-  if (pures.length > 0 && hand.length - pures[0].length >= 1) {
-    return { type: 'move-drop-meld', input: { kind: 'sequence', cards: pures[0] } };
-  }
-
-  // ---------- Priority 4: drop triplets (needs pure in box) --------------
-  if (situation.hasPureInBox) {
-    const trips = plan.triplets.slice().sort((a, b) => b.length - a.length);
-    if (trips.length > 0 && hand.length - trips[0].length >= 1) {
-      return { type: 'move-drop-meld', input: { kind: 'triplet', cards: trips[0] } };
-    }
-  }
-
-  // ---------- Priority 5: impure sequences -------------------------------
-  //
-  // Only after the team has committed a pure sequence (impure can't satisfy
-  // the pure-sequence-first-drop rule).
-  if (situation.hasPureInBox) {
-    const impures = plan.impureSequences.slice().sort((a, b) => b.length - a.length);
-    if (impures.length > 0 && hand.length - impures[0].length >= 1) {
-      return { type: 'move-drop-meld', input: { kind: 'sequence', cards: impures[0] } };
-    }
-  }
-
-  // ---------- Priority 6: discard ---------------------------------------
-  const recent = match.discard.slice(-4);
+  // ---------- Priority 5: discard ---------------------------------------
+  const recent = match.discard.slice(-6);
   const discardId = pickCardToDiscard(hand, situation, recent);
   return { type: 'move-discard', cardId: discardId };
 }
 
-// Which card of the hand should we throw? A card is a good discard when it
-// contributes nothing to any partial meld and doesn't feed an opponent.
+// Total cards contributed by an addition.
+function additionLen(a: PlayPlan['additions'][number]): number {
+  return (a.seqAdd?.length ?? 0) + (a.tripAdd?.length ?? 0);
+}
+
+// Look for an add-to-meld that pushes an existing team meld ≥7 cards.
+function pickGanasthaJump(
+  plan: PlayPlan,
+  situation: Situation,
+  hand: Card[],
+): MoveMessage | null {
+  let best: { g: PlayPlan['additions'][number]; final: number } | null = null;
+  for (const g of plan.additions) {
+    const meld = situation.myTeamMelds.find((m) => m.id === g.meldId)!;
+    const finalSize = meld.cards.length + additionLen(g);
+    if (finalSize < 7) continue;
+    if (hand.length - additionLen(g) < 1) continue; // must keep a discard
+    if (!best || finalSize > best.final) best = { g, final: finalSize };
+  }
+  if (!best) return null;
+  if (best.g.kind === 'sequence' && best.g.seqAdd) {
+    return {
+      type: 'move-add-to-sequence',
+      input: { meldId: best.g.meldId, additions: best.g.seqAdd },
+    };
+  }
+  if (best.g.kind === 'triplet' && best.g.tripAdd) {
+    return {
+      type: 'move-add-to-triplet',
+      input: { meldId: best.g.meldId, additions: best.g.tripAdd },
+    };
+  }
+  return null;
+}
+
+// Pick a first drop: a pure sequence that meets any first-drop constraints.
+function pickFirstDrop(
+  plan: PlayPlan,
+  situation: Situation,
+  hand: Card[],
+): MoveMessage | null {
+  const candidates = plan.pureSequences
+    .slice()
+    .filter((s) => hand.length - s.length >= 1)
+    .sort((a, b) => b.length - a.length);
+  if (candidates.length === 0) return null;
+  const seq = candidates[0];
+  const total = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
+  const needs100 = situation.mustFirstDropReach100;
+  // 3-card first drop is fine when the size or value is compelling — we've
+  // been sitting on cards long enough. Only skip if it's a bare 3-card seq
+  // AND we're not past 1000 AND we have a longer alternative held back.
+  if (seq.length === 3 && !needs100 && candidates.length === 0) return null;
+  // If we need ≥100 but this single sequence isn't enough, we still drop it;
+  // add-to-meld actions on later calls can bring the turn total up before the
+  // discard commits.
+  if (needs100 && total < 100 && seq.length < 5) {
+    // Very small seq is too weak on its own — but if it's all we have, drop
+    // it and hope subsequent actions get us over 100.
+  }
+  return { type: 'move-drop-meld', input: { kind: 'sequence', cards: seq } };
+}
+
+// Pick the strongest new meld to drop. `minPure` filters pure sequences.
+// Aggressive mode accepts smaller melds because closing/reducing hand matters
+// more than perfect sizing.
+function pickBestDrop(
+  plan: PlayPlan,
+  situation: Situation,
+  hand: Card[],
+  aggressive: boolean,
+  minPure = 3,
+): MoveMessage | null {
+  type Candidate = { input: MoveMessage; score: number };
+  const candidates: Candidate[] = [];
+
+  // Pure sequences — prefer bigger.
+  for (const seq of plan.pureSequences) {
+    if (seq.length < minPure) continue;
+    if (hand.length - seq.length < 1) continue;
+    const pts = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
+    const bonus = seq.length >= 7 ? 200 : 0;
+    candidates.push({
+      input: { type: 'move-drop-meld', input: { kind: 'sequence', cards: seq } },
+      score: pts + bonus + seq.length * 6, // length matters
+    });
+  }
+  // Triplets — only after team has a pure sequence in box.
+  if (situation.hasPureInBox) {
+    for (const trip of plan.triplets) {
+      if (trip.length < 3) continue;
+      if (hand.length - trip.length < 1) continue;
+      const pts = trip.reduce((s, m) => s + cardValue(m.card.rank), 0);
+      candidates.push({
+        input: { type: 'move-drop-meld', input: { kind: 'triplet', cards: trip } },
+        score: pts + trip.length * 4,
+      });
+    }
+  }
+  // Impure sequences — 2s go to jokers. Require size ≥ 5 (or 4 with only one
+  // joker) unless we're aggressive. A 3-card impure is essentially a joker
+  // set on fire.
+  if (situation.hasPureInBox) {
+    for (const seq of plan.impureSequences) {
+      const jokerCount = seq.filter((m) => m.isJoker).length;
+      const minSize = aggressive ? 3 : (jokerCount <= 1 ? 4 : 5);
+      if (seq.length < minSize) continue;
+      if (hand.length - seq.length < 1) continue;
+      const pts = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
+      // Penalize joker usage — the pts already count the joker's 10, but a
+      // joker used here is a joker unavailable elsewhere.
+      candidates.push({
+        input: { type: 'move-drop-meld', input: { kind: 'sequence', cards: seq } },
+        score: pts + seq.length * 5 - jokerCount * 12,
+      });
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.input ?? null;
+}
+
+// Which card of the hand should we throw? Every candidate is scored on:
+//   keep      — how much it contributes to potential future melds
+//   feeds     — whether discarding it likely helps an opponent
+//   value     — the penalty it costs if we get caught with it
+// The card with the LOWEST total keep + feed penalty is thrown; ties broken by
+// preferring higher-value cards (cheaper to dump).
 function pickCardToDiscard(
   hand: Card[],
   situation: Situation,
@@ -464,20 +571,28 @@ function pickCardToDiscard(
   const rankCounts: Record<number, number> = {};
   for (const c of hand) rankCounts[c.rank] = (rankCounts[c.rank] ?? 0) + 1;
 
-  // 2s are basically never discarded — they're precious jokers.
+  // 2s are strictly reserved as jokers — never discardable unless we truly
+  // hold nothing else, which never happens in practice.
   const nonJokers = hand.filter((c) => c.rank !== JOKER_RANK);
 
-  // Card fits a partial run if there's another same-suit card within ±2 ranks.
-  function isConnected(c: Card): boolean {
-    return (bySuit[c.suit] ?? []).some(
+  // Same-suit neighbours within ±2 ranks: count how many. More neighbours =
+  // stronger partial run and worse to break.
+  function suitNeighbours(c: Card): number {
+    return (bySuit[c.suit] ?? []).filter(
       (o) => o.id !== c.id && Math.abs(o.rank - c.rank) <= 2,
+    ).length;
+  }
+  // Direct adjacencies (rank ±1 same suit) are the strongest kind of keep.
+  function adjacentSameSuit(c: Card): boolean {
+    return (bySuit[c.suit] ?? []).some(
+      (o) => o.id !== c.id && Math.abs(o.rank - c.rank) === 1,
     );
   }
-  // Card fits a partial triplet if we hold another copy of the same rank.
-  function pairsToTriplet(c: Card): boolean {
-    return (rankCounts[c.rank] ?? 0) >= 2;
+  // Partial triplet: at least one other copy of same rank in hand.
+  function partialTriplet(c: Card): number {
+    return (rankCounts[c.rank] ?? 0) - 1;
   }
-  // Card extends an existing team sequence (same suit, adjacent rank).
+  // Extends an existing team meld.
   function extendsMyMeld(c: Card): boolean {
     for (const m of situation.myTeamMelds) {
       if (m.kind === 'sequence' && m.suit === c.suit) {
@@ -492,20 +607,29 @@ function pickCardToDiscard(
     return false;
   }
 
-  // Score = higher means worse to discard (more useful to us).
   function keepScore(c: Card): number {
     let s = 0;
-    if (isConnected(c)) s += 3;
-    if (pairsToTriplet(c)) s += 4;
-    if (extendsMyMeld(c)) s += 6;
+    s += suitNeighbours(c) * 2;
+    if (adjacentSameSuit(c)) s += 4;
+    s += partialTriplet(c) * 4;
+    if (extendsMyMeld(c)) s += 10; // huge — a card that grows an existing meld
     return s;
   }
 
-  // Feeding opponents — if opponents just discarded ranks adjacent to c, they
-  // may want it. Subtract a bit for "safe" cards.
+  // Feed-opponent penalty: opponents recently discarding ranks near c means
+  // they're not building around c themselves, so it's slightly safer. But
+  // recent discards near c also means they might now WANT c because they've
+  // shed similar cards. We treat "adjacent rank in recent discards" as unsafe
+  // because it suggests an opponent is building a run there.
   const recentRanks = new Set<number>(recentDiscards.map((c) => c.rank as number));
-  function feedsOpponent(c: Card): boolean {
-    return recentRanks.has(c.rank + 1) || recentRanks.has(c.rank - 1) || recentRanks.has(c.rank);
+  function feedsOpponent(c: Card): number {
+    let p = 0;
+    if (recentRanks.has(c.rank - 1) || recentRanks.has(c.rank + 1)) p += 3;
+    if (recentRanks.has(c.rank)) p += 2; // opponent may want the pair
+    // High cards (Ks, Qs) are dangerous to feed — they anchor sequences AND
+    // give opponents big penalty relief.
+    if (c.rank >= 10 || c.rank === 1) p += 1;
+    return p;
   }
 
   const scored = nonJokers.map((c) => ({
@@ -515,12 +639,12 @@ function pickCardToDiscard(
     feeds: feedsOpponent(c),
   }));
 
-  // Sort: lowest keep first, then not-feeding-opponent, then highest value
-  // (dumping face cards helps the opponent-penalty when they hold them, and
-  // reduces our own hand risk if we get caught with them).
+  // Sort: keep low + feeds low come first. If both tie, dump the higher-value
+  // card so leftover hand carries less penalty risk.
   scored.sort((a, b) => {
-    if (a.keep !== b.keep) return a.keep - b.keep;
-    if (a.feeds !== b.feeds) return a.feeds ? 1 : -1;
+    const totalA = a.keep + a.feeds;
+    const totalB = b.keep + b.feeds;
+    if (totalA !== totalB) return totalA - totalB;
     return b.val - a.val;
   });
   return (scored[0]?.c ?? nonJokers[0] ?? hand[0]).id;
