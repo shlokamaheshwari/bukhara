@@ -2616,11 +2616,11 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
 }
 [data-theme="sakura-dark"] {
   --bg-image: url('/sakura-dark.webp');
-  --text-primary: #F5E5EC;
-  --text-dim:     rgba(245, 229, 236, 0.78);
-  --text-faint:   rgba(245, 229, 236, 0.52);
-  --panel-bg:     rgba(42, 31, 50, 0.65);
-  --panel-bg-strong: rgba(42, 31, 50, 0.86);
+  --text-primary: #F8ECF1;
+  --text-dim:     rgba(248, 236, 241, 0.90);
+  --text-faint:   rgba(248, 236, 241, 0.70);
+  --panel-bg:     rgba(24, 17, 30, 0.86);
+  --panel-bg-strong: rgba(24, 17, 30, 0.94);
   --panel-border: rgba(200, 106, 133, 0.22);
   --panel-highlight: rgba(255, 255, 255, 0.05);
   --panel-shadow: 0 16px 50px rgba(0, 0, 0, 0.55);
