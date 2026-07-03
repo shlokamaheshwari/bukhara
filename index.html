@@ -12,6 +12,35 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Cinzel:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      // Preload the ACTIVE theme's background image before the JS bundle
+      // downloads, and prefetch the others so switching themes is instant.
+      // Runs synchronously here so the preload starts as soon as head parses.
+      (function () {
+        try {
+          var pack = localStorage.getItem('bhukara-theme-pack') || 'editorial';
+          var mode = localStorage.getItem('bhukara-theme-mode') || 'light';
+          var themeMap = {
+            'editorial-light': '/mountain-light.webp',
+            'editorial-dark': '/mountain-dark.webp',
+            'hotd-light': '/hotd-light.webp',
+            'hotd-dark': '/hotd-dark.webp',
+            'sakura-light': '/sakura-light.webp',
+            'sakura-dark': '/sakura-dark.webp',
+          };
+          var key = (pack === 'editorial' ? 'editorial-' + mode : pack + '-' + mode);
+          var current = themeMap[key];
+          Object.keys(themeMap).forEach(function (k) {
+            var url = themeMap[k];
+            var link = document.createElement('link');
+            link.rel = (url === current) ? 'preload' : 'prefetch';
+            link.as = 'image';
+            link.href = url;
+            document.head.appendChild(link);
+          });
+        } catch (e) { /* localStorage disabled — CSS will fetch on demand */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
