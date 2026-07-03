@@ -196,7 +196,10 @@ function bestImpureSequenceForSuit(
 function findTriplets(hand: Card[]): TripletMeldCard[][] {
   const byRank = new Map<Rank, Card[]>();
   for (const c of hand) {
-    if (c.rank === JOKER_RANK) continue; // triplets of 2s only if user has 3 natural 2s → handled below separately
+    // 2s are strictly reserved as wildcards. Dropping a triplet of 2s locks
+    // three jokers into a 30-pt meld when the same 2s could power a 7-card
+    // impure sequence worth several times more.
+    if (c.rank === JOKER_RANK) continue;
     if (!byRank.has(c.rank)) byRank.set(c.rank, []);
     byRank.get(c.rank)!.push(c);
   }
@@ -204,9 +207,6 @@ function findTriplets(hand: Card[]): TripletMeldCard[][] {
   for (const cards of byRank.values()) {
     if (cards.length >= 3) trips.push(cards.map((c) => ({ card: c, isJoker: false })));
   }
-  // Natural triplet of 2s if we have 3+ actual 2s.
-  const twos = hand.filter((c) => c.rank === JOKER_RANK);
-  if (twos.length >= 3) trips.push(twos.map((c) => ({ card: c, isJoker: false })));
   return trips;
 }
 
