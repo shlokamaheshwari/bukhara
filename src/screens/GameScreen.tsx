@@ -937,8 +937,13 @@ function CurrentHand({
   }
 
   function autoSort() {
+    // Alternate red / black so neighbouring suits are visually distinct.
+    // Order: ♦ ♠ ♥ ♣ (red, black, red, black).
+    const SUIT_ORDER: Record<string, number> = { D: 0, S: 1, H: 2, C: 3 };
     const sorted = [...player.hand]
-      .sort((a, b) => (a.suit !== b.suit ? a.suit.localeCompare(b.suit) : a.rank - b.rank))
+      .sort((a, b) => (a.suit !== b.suit
+        ? SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit]
+        : a.rank - b.rank))
       .map((c) => c.id);
     setLayout([sorted]);
   }
