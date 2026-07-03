@@ -175,6 +175,33 @@ body {
   background-repeat: no-repeat;
 }
 
+/* Scrim between the backdrop photo and every panel. Editorial's mountain
+   images are quiet enough that no scrim is needed; the HotD photos are
+   high-contrast landscapes that swamp the glass panels underneath, so
+   HotD-light gets a warm-ink scrim and HotD-dark gets an obsidian scrim.
+   The vignette darkens top and bottom (where the topbar and hand live)
+   and lets the middle atmosphere show through. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: transparent;
+  transition: background 0.35s ease;
+}
+[data-theme="hotd-light"] body::before {
+  background: linear-gradient(180deg,
+    rgba(30, 15, 0, 0.36) 0%,
+    rgba(30, 15, 0, 0.20) 45%,
+    rgba(30, 15, 0, 0.34) 100%);
+}
+[data-theme="hotd-dark"] body::before {
+  background: linear-gradient(180deg,
+    rgba(0, 0, 0, 0.42) 0%,
+    rgba(0, 0, 0, 0.24) 50%,
+    rgba(0, 0, 0, 0.46) 100%);
+}
 .table-app { min-height: 100vh; display: flex; flex-direction: column; position: relative; z-index: 1; }
 
 /* Utility glass — used by many components. */
