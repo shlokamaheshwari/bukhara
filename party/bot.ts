@@ -210,8 +210,15 @@ function findTriplets(hand: Card[]): TripletMeldCard[][] {
   return trips;
 }
 
-// Additions to an existing team meld. Groups all natural extensions we can
-// make in one shot so the bot pumps the meld toward 7+ in one call.
+// Additions to an existing team meld. Groups every extension we can make in
+// one shot so the bot pumps the meld toward ganastha in a single call.
+//
+// This function also bridges gaps with jokers when a natural exists further
+// out — e.g. meld tops at 9, hand has {2, J, Q} same suit → drop the joker
+// in at slot 10, then J natural at 11, Q natural at 12. Without the bridge
+// logic the bot would drop {2, J, Q} as a new tiny impure meld instead of
+// extending the big existing one, which is the kind of "why would anyone
+// do that" move humans notice immediately.
 function findAdditionsForMeld(
   hand: Card[],
   meld: Meld,
@@ -221,50 +228,106 @@ function findAdditionsForMeld(
     const positions = new Set(meld.cards.map((c) => c.actingAs as number));
     const min = Math.min(...positions);
     const max = Math.max(...positions);
-    const additions: SequenceMeldCard[] = [];
-    // Consume same-suit naturals that extend either end contiguously.
+
+    // Same-suit naturals available for this meld, and separately the jokers
+    // we could burn to bridge gaps.
     const same = hand
       .filter((c) => c.suit === suit && c.rank !== JOKER_RANK)
       .sort((a, b) => a.rank - b.rank);
-    // Grow high end.
-    let highCursor = max;
-    for (const c of same) {
-      if (c.rank === highCursor + 1 && highCursor + 1 <= 13) {
-        additions.push({ card: c, actingAs: (highCursor + 1) as SeqPos, isJoker: false });
-        highCursor++;
+    const naturalsBySlot = new Map<number, Card>();
+    for (const c of same) naturalsBySlot.set(c.rank, c);
+    // Ace can naturally sit at slot 14 (Ace-high) when the meld tops at K.
+    const ace = same.find((c) => c.rank === 1);
+    const jokerPool = hand.filter((c) => c.rank === JOKER_RANK);
+
+    const usedIds = new Set<string>();
+    const additions: SequenceMeldCard[] = [];
+
+    // Walk outward from each end, filling slot by slot. Prefer naturals; use
+    // a joker only when a natural (or Ace) reachable further out justifies
+    // the wildcard spend.
+    function fillHigh() {
+      let cursor = max;
+      while (cursor < 14) {
+        const nextSlot = cursor + 1;
+        // Natural available for this slot?
+        const nat = naturalsBySlot.get(nextSlot);
+        if (nat && !usedIds.has(nat.id)) {
+          additions.push({ card: nat, actingAs: nextSlot as SeqPos, isJoker: false });
+          usedIds.add(nat.id);
+          cursor = nextSlot;
+          continue;
+        }
+        // Ace-high slot (14) is only reachable if we've climbed to slot 13.
+        if (nextSlot === 14 && cursor === 13 && ace && !usedIds.has(ace.id)) {
+          additions.push({ card: ace, actingAs: 14 as SeqPos, isJoker: false });
+          usedIds.add(ace.id);
+          cursor = 14;
+          continue;
+        }
+        // No natural — can a joker bridge here? Only if another natural (or
+        // the Ace) further out is still reachable in ≤2 slots. Otherwise the
+        // joker is a wildcard set on fire.
+        const jokerAvailable = jokerPool.find((j) => !usedIds.has(j.id));
+        if (!jokerAvailable) break;
+        const bridgeUnlocks =
+          (naturalsBySlot.has(nextSlot + 1) && !usedIds.has(naturalsBySlot.get(nextSlot + 1)!.id)) ||
+          (naturalsBySlot.has(nextSlot + 2) && !usedIds.has(naturalsBySlot.get(nextSlot + 2)!.id)) ||
+          (nextSlot + 1 === 14 && cursor + 1 === 13 && ace && !usedIds.has(ace.id));
+        if (!bridgeUnlocks) break;
+        additions.push({ card: jokerAvailable, actingAs: nextSlot as SeqPos, isJoker: true });
+        usedIds.add(jokerAvailable.id);
+        cursor = nextSlot;
       }
     }
-    // Grow low end.
-    let lowCursor = min;
-    // Include Ace-high (13→14) only via the high grow above.
-    // Iterate largest-to-smallest for low extension.
-    const usedIds = new Set(additions.map((a) => a.card.id));
-    for (const c of [...same].reverse()) {
-      if (usedIds.has(c.id)) continue;
-      if (c.rank === lowCursor - 1 && lowCursor - 1 >= 1) {
-        additions.push({ card: c, actingAs: (lowCursor - 1) as SeqPos, isJoker: false });
-        lowCursor--;
+
+    function fillLow() {
+      let cursor = min;
+      while (cursor > 1) {
+        const nextSlot = cursor - 1;
+        const nat = naturalsBySlot.get(nextSlot);
+        if (nat && !usedIds.has(nat.id)) {
+          additions.push({ card: nat, actingAs: nextSlot as SeqPos, isJoker: false });
+          usedIds.add(nat.id);
+          cursor = nextSlot;
+          continue;
+        }
+        const jokerAvailable = jokerPool.find((j) => !usedIds.has(j.id));
+        if (!jokerAvailable) break;
+        const bridgeUnlocks =
+          (naturalsBySlot.has(nextSlot - 1) && !usedIds.has(naturalsBySlot.get(nextSlot - 1)!.id)) ||
+          (naturalsBySlot.has(nextSlot - 2) && !usedIds.has(naturalsBySlot.get(nextSlot - 2)!.id));
+        if (!bridgeUnlocks) break;
+        additions.push({ card: jokerAvailable, actingAs: nextSlot as SeqPos, isJoker: true });
+        usedIds.add(jokerAvailable.id);
+        cursor = nextSlot;
       }
     }
-    // Ace-high extension when meld tops out at K (13).
-    if (max === 13) {
-      const ace = hand.find((c) => c.suit === suit && c.rank === 1 && !usedIds.has(c.id));
-      if (ace) {
-        additions.push({ card: ace, actingAs: 14 as SeqPos, isJoker: false });
-      }
-    }
+
+    fillHigh();
+    fillLow();
+
     if (additions.length === 0) return null;
     return { meldId: meld.id, kind: 'sequence', seqAdd: additions };
   }
-  // Triplet — add every natural card of the meld's rank.
+
+  // Triplet — every natural of the meld's rank, plus at most one joker if
+  // the triplet doesn't already contain one.
   const rank = meld.rank;
   const naturals = hand.filter((c) => c.rank === rank);
-  if (naturals.length === 0) return null;
-  return {
-    meldId: meld.id,
-    kind: 'triplet',
-    tripAdd: naturals.map((c) => ({ card: c, isJoker: false })),
-  };
+  const alreadyHasJoker = meld.cards.some((c) => c.isJoker);
+  const additions: TripletMeldCard[] = naturals.map((c) => ({ card: c, isJoker: false }));
+  if (!alreadyHasJoker && rank !== JOKER_RANK) {
+    const joker = hand.find((c) => c.rank === JOKER_RANK);
+    // Only spend a joker on a triplet if the meld isn't already at ganastha
+    // (7+ cards) — extending an already-huge triplet with a joker is fine,
+    // but past that the joker is worth more in a sequence.
+    if (joker && meld.cards.length < 7) {
+      additions.push({ card: joker, isJoker: true });
+    }
+  }
+  if (additions.length === 0) return null;
+  return { meldId: meld.id, kind: 'triplet', tripAdd: additions };
 }
 
 function buildPlayPlan(situation: Situation): PlayPlan {
