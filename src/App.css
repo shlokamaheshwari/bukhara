@@ -2593,11 +2593,11 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
    ============================================================= */
 [data-theme="sakura-light"] {
   --bg-image: url('/sakura-light.webp');
-  --text-primary: #3B0F1E;
-  --text-dim:     rgba(59, 15, 30, 0.72);
-  --text-faint:   rgba(59, 15, 30, 0.50);
-  --panel-bg:     rgba(255, 249, 245, 0.65);
-  --panel-bg-strong: rgba(255, 249, 245, 0.85);
+  --text-primary: #2C0B18;
+  --text-dim:     rgba(44, 11, 24, 0.88);
+  --text-faint:   rgba(44, 11, 24, 0.68);
+  --panel-bg:     rgba(255, 250, 245, 0.90);
+  --panel-bg-strong: rgba(255, 250, 245, 0.96);
   --panel-border: rgba(155, 44, 74, 0.16);
   --panel-highlight: rgba(255, 255, 255, 0.7);
   --panel-shadow: 0 12px 40px rgba(155, 44, 74, 0.12);
