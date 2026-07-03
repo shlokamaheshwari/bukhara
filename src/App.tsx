@@ -116,59 +116,8 @@ type Auth = { token: string; username: string; displayName: string };
 
 const AUTH_STORAGE_KEY = 'bhukara-auth';
 
-// Terminal ambient chrome — a fake file tree pinned to the left and a
-// looping log strip at the very bottom. Purely decorative, zero
-// interaction. Rendered only when the Terminal pack is active.
-function TerminalChrome() {
-  return (
-    <div className="terminal-chrome" aria-hidden="true">
-      <aside className="terminal-tree">
-        <div className="terminal-tree-title">bukhara ▶ src</div>
-        <ul>
-          <li className="tt-folder">game</li>
-          <li className="tt-file">moves.ts</li>
-          <li className="tt-file">bot.ts</li>
-          <li className="tt-file">newGame.ts</li>
-          <li className="tt-file">scoring.ts</li>
-          <li className="tt-file">types.ts</li>
-          <li className="tt-folder">screens</li>
-          <li className="tt-file active">GameScreen.tsx</li>
-          <li className="tt-file">LobbyScreen.tsx</li>
-          <li className="tt-folder">ui</li>
-          <li className="tt-file">Card.tsx</li>
-          <li className="tt-file">App.tsx</li>
-          <li className="tt-file">App.css</li>
-          <li className="tt-folder closed">party</li>
-        </ul>
-      </aside>
-      <div className="terminal-log">
-        <div className="terminal-log-inner">
-          <div className="terminal-log-line"><span className="tag info">INFO</span>server: room BUKHARA26 online</div>
-          <div className="terminal-log-line"><span className="tag ok">OK</span>auth: shloka connected</div>
-          <div className="terminal-log-line"><span className="tag dbg">DBG</span>engine: match 3 started</div>
-          <div className="terminal-log-line"><span className="tag info">INFO</span>bot: Bot 2 drew from deck</div>
-          <div className="terminal-log-line"><span className="tag ok">OK</span>meld: pure sequence dropped (♠, 45pt)</div>
-          <div className="terminal-log-line"><span className="tag info">INFO</span>bot: Bot 3 discarded 9♥</div>
-          <div className="terminal-log-line"><span className="tag warn">WARN</span>scoring: first_drop &lt; 100 pts</div>
-          <div className="terminal-log-line"><span className="tag ok">OK</span>meld: extended sequence → 7 cards</div>
-          <div className="terminal-log-line"><span className="tag dbg">DBG</span>engine: turn advance → seat 1</div>
-          <div className="terminal-log-line"><span className="tag info">INFO</span>chat: &lt;Bot 4&gt; nice play</div>
-          <div className="terminal-log-line"><span className="tag ok">OK</span>bukhara: pile claimed by seat 2</div>
-          <div className="terminal-log-line"><span className="tag info">INFO</span>bot: Bot 2 selected trip Q</div>
-          <div className="terminal-log-line"><span className="tag dbg">DBG</span>engine: sequenceBox.push(seq_45)</div>
-          <div className="terminal-log-line"><span className="tag ok">OK</span>meld: ganastha reached (7 cards)</div>
-          <div className="terminal-log-line"><span className="tag info">INFO</span>net: broadcast state (rev 214)</div>
-          <div className="terminal-log-line"><span className="tag warn">WARN</span>discard: card not in hand</div>
-          <div className="terminal-log-line"><span className="tag info">INFO</span>server: room BUKHARA26 online</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
   const { pack, mode, toggleMode, togglePack } = useTheme();
-  const terminalChrome = pack === 'terminal' ? <TerminalChrome /> : null;
   const [auth, setAuth] = useState<Auth | null>(null);
   const [checking, setChecking] = useState(true);
   const [roomCode, setRoomCode] = useState<string | null>(null);
@@ -306,13 +255,12 @@ export default function App() {
   );
 
   if (checking) {
-    return <>{terminalChrome}{toggle}<div className="loading-screen"><div className="loading-inner">Loading…</div></div></>;
+    return <>{toggle}<div className="loading-screen"><div className="loading-inner">Loading…</div></div></>;
   }
-  if (!auth) return <>{terminalChrome}{toggle}<AuthScreen onAuthed={onAuthed} /></>;
+  if (!auth) return <>{toggle}<AuthScreen onAuthed={onAuthed} /></>;
   if (!roomCode) {
     return (
       <>
-        {terminalChrome}
         {toggle}
         <LandingScreen
           displayName={auth.displayName}
@@ -323,12 +271,11 @@ export default function App() {
     );
   }
   if (!roomState) {
-    return <>{terminalChrome}{toggle}<div className="loading-screen"><div className="loading-inner">Joining room…</div></div></>;
+    return <>{toggle}<div className="loading-screen"><div className="loading-inner">Joining room…</div></div></>;
   }
   if (!roomState.started) {
     return (
       <>
-        {terminalChrome}
         {toggle}
         {reactionsLayer}
         <RoomLobby
@@ -340,13 +287,12 @@ export default function App() {
     );
   }
   if (!gameState) {
-    return <>{terminalChrome}{toggle}<div className="loading-screen"><div className="loading-inner">Dealing…</div></div></>;
+    return <>{toggle}<div className="loading-screen"><div className="loading-inner">Dealing…</div></div></>;
   }
   // In-game we drop the floating theme buttons — GameScreen renders its own
   // theme controls inline in the topbar (guaranteed visible over the table).
   return (
     <>
-      {terminalChrome}
       {reactionsLayer}
       <GameScreen
         themePack={pack}
