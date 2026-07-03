@@ -173,6 +173,28 @@
 }
 [data-theme="terminal-light"] body::before { background: transparent; }
 
+/* Graph-paper dot grid — Terminal's only backdrop element. Sits at the
+   image layer with pointer-events off so it never blocks the UI. */
+[data-theme^="terminal"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle,
+      rgba(255, 255, 255, 0.055) 1px,
+      transparent 1.5px);
+  background-size: 24px 24px;
+  background-position: 0 0;
+}
+[data-theme="terminal-light"] body::after {
+  background-image:
+    radial-gradient(circle,
+      rgba(0, 0, 0, 0.06) 1px,
+      transparent 1.5px);
+}
+
 /* Font stack: everything monospace in Terminal. Cinzel/Fraunces overrides
    for hotd would fight this; the descendant selector wins by specificity. */
 [data-theme^="terminal"] .topbar h1,
