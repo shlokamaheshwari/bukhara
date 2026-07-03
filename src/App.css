@@ -1569,6 +1569,13 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   box-shadow: 0 4px 20px rgba(227, 106, 76, 0.35);
 }
 .tb-primary:hover:not(:disabled) { background: var(--peach-soft); color: var(--cream); }
+.tb-undo {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-weight: 600;
+}
+.tb-undo:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 .tb-icon { font-size: 14px; line-height: 1; }
 .selected-count {
   font-family: 'JetBrains Mono', monospace;

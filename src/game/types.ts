@@ -84,6 +84,19 @@ export type TurnPhase =
 
 export type MatchPhase = 'playing' | 'ended-normal' | 'ended-void';
 
+// Snapshot of the state right after the current player finished drawing —
+// used to power an in-turn Undo button. Contains only the fields that meld
+// actions can mutate. Cleared when the turn ends via discard, refreshed if
+// the player picks up the Bhukara mid-turn.
+export type PreMeldSnapshot = {
+  seat: PlayerId;
+  hand: Card[];
+  sequenceBoxA: Meld[];
+  sequenceBoxB: Meld[];
+  midMatchPenaltyA: number;
+  midMatchPenaltyB: number;
+};
+
 // A single deal — points don't leave the match until it ends.
 export type Match = {
   matchNumber: number;
@@ -101,6 +114,9 @@ export type Match = {
   // Meld IDs that were newly created (not just added-to) during the currently
   // active turn. Used to validate the team's first-drop rules on discard.
   meldsCreatedThisTurn: string[];
+  // Snapshot taken at the moment the player transitioned into may-meld.
+  // Undo restores the player's hand and team sequence boxes to this state.
+  preMeldSnapshot: PreMeldSnapshot | null;
 };
 
 // Per-match score record — one entry pushed at each match end so the UI

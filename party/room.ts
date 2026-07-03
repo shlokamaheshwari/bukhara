@@ -14,6 +14,7 @@ import {
   dropMeld,
   moveJoker,
   pickDiscard,
+  undoTurn,
 } from '../src/game/moves';
 import { endMatchAndAdvance } from '../src/game/matchEnd';
 import type { Game, PlayerId } from '../src/game/types';
@@ -429,6 +430,7 @@ export class RoomDO extends DurableObject<Env> {
       case 'move-add-to-triplet': result = addToTriplet(match, msg.input); break;
       case 'move-joker': result = moveJoker(match, msg.meldId, msg.jokerCardId, msg.newActingAs); break;
       case 'move-discard': result = discard(match, msg.cardId); break;
+      case 'move-undo-turn': result = undoTurn(match); break;
       default: result = { ok: false, reason: 'Unknown move' };
     }
 

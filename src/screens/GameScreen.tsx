@@ -19,6 +19,7 @@ import {
   dropMeld,
   moveJoker,
   pickDiscard,
+  undoTurn,
 } from '../game/moves';
 import { cardLabel } from '../game/deck';
 import { endMatchAndAdvance } from '../game/matchEnd';
@@ -226,6 +227,10 @@ export default function GameScreen(props: GameScreenProps = {}) {
     if (selected.size !== 1) return setError('Select exactly one card to discard');
     if (isMP) return netSend!({ type: 'move-discard', cardId: [...selected][0] });
     apply(discard(match, [...selected][0]));
+  }
+  function onUndoTurn() {
+    if (isMP) return netSend!({ type: 'move-undo-turn' });
+    apply(undoTurn(match));
   }
   function onNextMatch() {
     if (isMP) return netSend!({ type: 'next-match' });
@@ -480,6 +485,13 @@ export default function GameScreen(props: GameScreenProps = {}) {
                 onDropSequence={onStartDropSequence}
                 onDropTriplet={onStartDropTriplet}
                 onDiscard={onDiscard}
+                onUndo={onUndoTurn}
+                canUndo={
+                  isYourTurn &&
+                  match.turnPhase === 'may-meld' &&
+                  match.preMeldSnapshot !== null &&
+                  match.meldsCreatedThisTurn.length > 0
+                }
                 onNextMatch={onNextMatch}
                 showNextMatch={matchOver && !game.winner}
               />
@@ -865,6 +877,8 @@ function ActionsToolbar({
   onDropSequence,
   onDropTriplet,
   onDiscard,
+  onUndo,
+  canUndo,
   onNextMatch,
   showNextMatch,
 }: {
@@ -876,6 +890,8 @@ function ActionsToolbar({
   onDropSequence: () => void;
   onDropTriplet: () => void;
   onDiscard: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
   onNextMatch: () => void;
   showNextMatch: boolean;
 }) {
@@ -908,6 +924,11 @@ function ActionsToolbar({
       </div>
 
       <div className="toolbar-group toolbar-right">
+        {canUndo && (
+          <button className="tb-btn tb-undo" onClick={onUndo} title="Undo everything you did this turn">
+            <span className="tb-icon">↺</span> Undo turn
+          </button>
+        )}
         <span className={`selected-count ${selectedCount > 0 ? 'active' : ''}`}>
           {selectedCount} selected
         </span>

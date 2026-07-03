@@ -79,6 +79,7 @@ export type MoveMessage =
   | { type: 'move-add-to-triplet'; input: AddToTripletInput }
   | { type: 'move-joker'; meldId: string; jokerCardId: string; newActingAs: SeqPos }
   | { type: 'move-discard'; cardId: string }
+  | { type: 'move-undo-turn' }
   | { type: 'next-match' };
 
 export type ClientMessage = LobbyMessage | MoveMessage;

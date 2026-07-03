@@ -80,6 +80,7 @@ export function newMatch(opts: NewMatchOptions): Match {
     phase: 'playing',
     closedBy: null,
     meldsCreatedThisTurn: [],
+    preMeldSnapshot: null,
   };
 }
 

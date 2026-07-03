@@ -3,6 +3,7 @@ import type {
   Match,
   Meld,
   PlayerId,
+  PreMeldSnapshot,
   SequenceMeld,
   SequenceMeldCard,
   SeqPos,
@@ -44,6 +45,22 @@ function boxHasPureSequence(box: Meld[]): boolean {
 }
 
 
+// Snapshot the current player's mutable turn state — hand, both team
+// sequence boxes, midMatchPenalty — at the moment they enter may-meld.
+// Undo restores exactly this. Bhukara pickup calls it again mid-turn so
+// the post-pickup state also becomes undoable.
+function takeSnapshot(match: Match): PreMeldSnapshot {
+  const seat = match.currentTurn;
+  return {
+    seat,
+    hand: match.players[seat].hand,
+    sequenceBoxA: match.teams.A.sequenceBox,
+    sequenceBoxB: match.teams.B.sequenceBox,
+    midMatchPenaltyA: match.teams.A.midMatchPenalty,
+    midMatchPenaltyB: match.teams.B.midMatchPenalty,
+  };
+}
+
 // Advance to the next player and reset per-turn state. If the deck has
 // run out, the match ends here — no player should sit with a phantom draw.
 // Bhukara-taken teams still score normally with whatever's on the table;
@@ -55,6 +72,7 @@ function advanceTurn(match: Match): Match {
     currentTurn: next,
     turnPhase: 'awaiting-draw',
     meldsCreatedThisTurn: [],
+    preMeldSnapshot: null,
   };
   if (advanced.stock.length === 0) {
     return {
@@ -73,18 +91,16 @@ export function drawStock(match: Match): MoveResult {
   if (match.stock.length === 0) return { ok: false, reason: 'Stock is empty' };
   const [top, ...rest] = match.stock;
   const player = currentPlayer(match);
-  return {
-    ok: true,
-    match: {
-      ...match,
-      stock: rest,
-      players: {
-        ...match.players,
-        [player.id]: { ...player, hand: [...player.hand, top] },
-      },
-      turnPhase: 'may-meld',
+  const afterDraw: Match = {
+    ...match,
+    stock: rest,
+    players: {
+      ...match.players,
+      [player.id]: { ...player, hand: [...player.hand, top] },
     },
+    turnPhase: 'may-meld',
   };
+  return { ok: true, match: { ...afterDraw, preMeldSnapshot: takeSnapshot(afterDraw) } };
 }
 
 // ---- Move: pick up discard pile ---------------------------------------
@@ -94,18 +110,16 @@ export function pickDiscard(match: Match): MoveResult {
   if (match.turnPhase !== 'awaiting-draw') return { ok: false, reason: 'Not in draw phase' };
   if (match.discard.length === 0) return { ok: false, reason: 'Discard pile is empty' };
   const player = currentPlayer(match);
-  return {
-    ok: true,
-    match: {
-      ...match,
-      discard: [],
-      players: {
-        ...match.players,
-        [player.id]: { ...player, hand: [...player.hand, ...match.discard] },
-      },
-      turnPhase: 'may-meld',
+  const afterPick: Match = {
+    ...match,
+    discard: [],
+    players: {
+      ...match.players,
+      [player.id]: { ...player, hand: [...player.hand, ...match.discard] },
     },
+    turnPhase: 'may-meld',
   };
+  return { ok: true, match: { ...afterPick, preMeldSnapshot: takeSnapshot(afterPick) } };
 }
 
 // ---- Move: drop a new meld to team's sequence box ---------------------
@@ -442,7 +456,10 @@ export function discard(match: Match, cardId: string): MoveResult {
         },
         turnPhase: 'may-meld', // same player continues; must discard again eventually
       };
-      return { ok: true, match: next };
+      // Same player continues melding — refresh the undo snapshot so their
+      // post-bhukara meld actions are undoable back to this state (not to
+      // pre-turn, which would rewind the bhukara pickup itself).
+      return { ok: true, match: { ...next, preMeldSnapshot: takeSnapshot(next) } };
     } else {
       // Match closes — but only if the team has completed at least one 7+ card
       // meld (a "ganastha"). Sequence or triplet, pure or impure, either counts.
@@ -483,4 +500,33 @@ export function checkVoidCondition(match: Match): Match {
     };
   }
   return match;
+}
+
+// ---- Move: undo the current turn back to the post-draw snapshot -----
+//
+// Any melds dropped, cards added, or jokers moved this turn are reverted.
+// The player's hand goes back to what it looked like the moment after they
+// drew or picked the discard pile. Safe to call at any point during the
+// may-meld phase; no-op (rejection) if there's nothing to undo.
+export function undoTurn(match: Match): MoveResult {
+  if (match.phase !== 'playing') return { ok: false, reason: 'Match is over' };
+  if (match.turnPhase !== 'may-meld') return { ok: false, reason: 'Undo only works during meld phase' };
+  const snap = match.preMeldSnapshot;
+  if (!snap) return { ok: false, reason: 'Nothing to undo' };
+  if (snap.seat !== match.currentTurn) return { ok: false, reason: 'Nothing to undo' };
+  return {
+    ok: true,
+    match: {
+      ...match,
+      players: {
+        ...match.players,
+        [snap.seat]: { ...match.players[snap.seat], hand: snap.hand },
+      },
+      teams: {
+        A: { ...match.teams.A, sequenceBox: snap.sequenceBoxA, midMatchPenalty: snap.midMatchPenaltyA },
+        B: { ...match.teams.B, sequenceBox: snap.sequenceBoxB, midMatchPenalty: snap.midMatchPenaltyB },
+      },
+      meldsCreatedThisTurn: [],
+    },
+  };
 }
