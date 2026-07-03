@@ -173,52 +173,166 @@
 }
 [data-theme="terminal-light"] body::before { background: transparent; }
 
-/* ASCII horizon — Terminal's own quiet backdrop. Sits behind the UI at
-   roughly the horizon line, uses slashes and pipes to draw a distant
-   mountain range in the theme's monospace face. No motion. */
-[data-theme^="terminal"] body::after {
-  content:
-    "                        /\\                                        /\\                                                                                        \A"
-    "                       /  \\               /\\                     /  \\                     /\\                                     /\\                          \A"
-    "                      /    \\             /  \\                   /    \\                   /  \\               /\\                   /  \\                         \A"
-    "         /\\          /      \\    /\\     /    \\      /\\         /      \\      /\\         /    \\    /\\      /  \\                 /    \\      /\\                 \A"
-    "        /  \\        /        \\  /  \\   /      \\    /  \\       /        \\    /  \\       /      \\  /  \\    /    \\               /      \\    /  \\                \A"
-    "   /\\  /    \\      /          \\/    \\_/        \\  /    \\     /          \\  /    \\     /        \\/    \\__/      \\    /\\        /        \\  /    \\    /\\         \A"
-    "  /  \\/      \\____/                             \\/      \\___/            \\/      \\___/                        \\__/  \\______/          \\/      \\__/  \\____   \A"
-    "_/                                                                                                                                                        \\_ ";
+/* =============================================================
+   Terminal ambient chrome — file tree sidebar + log tail
+   Two purely decorative pieces that render only when the Terminal
+   pack is active. They sit at z-index 0 with pointer-events: none,
+   so nothing intercepts clicks or drags. Both are hidden on mobile
+   viewports where there isn't room to spare.
+   ============================================================= */
+.terminal-chrome {
   position: fixed;
-  bottom: 24vh;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+.terminal-tree {
+  position: absolute;
+  top: 76px;
+  bottom: 40px;
+  left: 0;
+  width: 220px;
+  padding: 16px 12px 12px 16px;
+  border-right: 1px solid rgba(62, 62, 66, 0.7);
+  background: rgba(37, 37, 38, 0.28);
+  font-size: 11px;
+  line-height: 1.9;
+  color: rgba(212, 212, 212, 0.36);
+  overflow: hidden;
+  opacity: 0.9;
+}
+[data-theme="terminal-light"] .terminal-tree {
+  border-right-color: rgba(0, 0, 0, 0.10);
+  background: rgba(0, 0, 0, 0.03);
+  color: rgba(31, 31, 31, 0.35);
+}
+.terminal-tree-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed rgba(62, 62, 66, 0.5);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(212, 212, 212, 0.5);
+}
+[data-theme="terminal-light"] .terminal-tree-title {
+  color: rgba(31, 31, 31, 0.5);
+  border-bottom-color: rgba(0, 0, 0, 0.15);
+}
+.terminal-tree ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.terminal-tree li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.terminal-tree .tt-folder { color: rgba(78, 201, 176, 0.55); }
+[data-theme="terminal-light"] .terminal-tree .tt-folder { color: rgba(38, 127, 153, 0.55); }
+.terminal-tree .tt-folder::before { content: '▾ '; opacity: 0.7; }
+.terminal-tree .tt-folder.closed::before { content: '▸ '; }
+.terminal-tree .tt-file { padding-left: 16px; }
+.terminal-tree .tt-file.active {
+  color: rgba(86, 156, 214, 0.8);
+  background: linear-gradient(90deg, rgba(86, 156, 214, 0.12), transparent 70%);
+  padding-left: 12px;
+  border-left: 2px solid rgba(86, 156, 214, 0.6);
+}
+[data-theme="terminal-light"] .terminal-tree .tt-file.active {
+  color: rgba(0, 0, 255, 0.7);
+  background: linear-gradient(90deg, rgba(0, 0, 255, 0.10), transparent 70%);
+  border-left-color: rgba(0, 0, 255, 0.5);
+}
+
+/* Log tail — thin fixed strip at the very bottom of the viewport.
+   Contents scroll upward on a linear loop so it reads as a live
+   log stream. Fake but plausible lines; not wired to game state
+   (yet). */
+.terminal-log {
+  position: fixed;
   left: 0;
   right: 0;
+  bottom: 0;
+  height: 28px;
+  padding: 0 24px 0 240px;
+  background: rgba(0, 0, 0, 0.55);
+  border-top: 1px solid rgba(62, 62, 66, 0.7);
+  color: rgba(212, 212, 212, 0.55);
   font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
-  font-size: 13px;
-  line-height: 1.1;
-  color: rgba(88, 100, 108, 0.32);
-  white-space: pre;
-  pointer-events: none;
-  z-index: 0;
+  font-size: 11px;
+  line-height: 28px;
   overflow: hidden;
-  text-align: center;
-  letter-spacing: 0.06em;
+  z-index: 0;
+  pointer-events: none;
 }
-[data-theme="terminal-light"] body::after {
-  color: rgba(120, 130, 140, 0.28);
+[data-theme="terminal-light"] .terminal-log {
+  background: rgba(243, 243, 243, 0.85);
+  border-top-color: rgba(0, 0, 0, 0.12);
+  color: rgba(31, 31, 31, 0.65);
 }
-@media (max-width: 900px) {
-  [data-theme^="terminal"] body::after {
-    font-size: 10px;
-    bottom: 26vh;
-  }
+.terminal-log::before {
+  content: '> ';
+  color: rgba(78, 201, 176, 0.75);
+  position: absolute;
+  left: 244px;
+  top: 0;
+  bottom: 0;
+  line-height: 28px;
+}
+[data-theme="terminal-light"] .terminal-log::before {
+  color: rgba(38, 127, 153, 0.75);
+}
+.terminal-log-inner {
+  position: absolute;
+  left: 268px;
+  right: 24px;
+  top: 0;
+  animation: terminalLogScroll 48s linear infinite;
+}
+@keyframes terminalLogScroll {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(calc(-100% + 28px)); }
+}
+.terminal-log-line {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.terminal-log-line .tag {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 2px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  line-height: 14px;
+}
+.terminal-log-line .tag.info { color: #569CD6; background: rgba(86, 156, 214, 0.10); }
+.terminal-log-line .tag.ok   { color: #6A9955; background: rgba(106, 153, 85, 0.12); }
+.terminal-log-line .tag.warn { color: #DCDCAA; background: rgba(220, 220, 170, 0.12); }
+.terminal-log-line .tag.dbg  { color: #C586C0; background: rgba(197, 134, 192, 0.12); }
+.terminal-log-line .tag.err  { color: #F48771; background: rgba(244, 135, 113, 0.12); }
+[data-theme="terminal-light"] .terminal-log-line .tag.info { color: #0000FF; background: rgba(0, 0, 255, 0.06); }
+[data-theme="terminal-light"] .terminal-log-line .tag.ok   { color: #267F99; background: rgba(38, 127, 153, 0.08); }
+[data-theme="terminal-light"] .terminal-log-line .tag.warn { color: #7A6928; background: rgba(122, 105, 40, 0.08); }
+[data-theme="terminal-light"] .terminal-log-line .tag.dbg  { color: #AF00DB; background: rgba(175, 0, 219, 0.06); }
+[data-theme="terminal-light"] .terminal-log-line .tag.err  { color: #A31515; background: rgba(163, 21, 21, 0.06); }
+
+@media (max-width: 1100px) {
+  .terminal-tree { display: none; }
+  .terminal-log { padding-left: 24px; }
+  .terminal-log::before { left: 24px; }
+  .terminal-log-inner { left: 48px; }
 }
 @media (max-width: 600px) {
-  [data-theme^="terminal"] body::after {
-    font-size: 8px;
-    bottom: 30vh;
-    letter-spacing: 0.03em;
-  }
+  .terminal-log { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  /* Nothing to disable — static art already respects reduced motion. */
+  .terminal-log-inner { animation: none; }
 }
 
 /* Font stack: everything monospace in Terminal. Cinzel/Fraunces overrides
