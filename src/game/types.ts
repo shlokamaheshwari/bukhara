@@ -103,11 +103,21 @@ export type Match = {
   meldsCreatedThisTurn: string[];
 };
 
+// Per-match score record — one entry pushed at each match end so the UI
+// can show the running series broken down by match.
+export type MatchHistoryEntry = {
+  matchNumber: number;
+  teamA: number;
+  teamB: number;
+  void: boolean;
+};
+
 // Whole-game state, persists across matches until someone hits target.
 export type Game = {
   teams: Record<TeamId, { totalScore: number }>;
   currentMatch: Match;
   matchesPlayed: number;
+  matchHistory: MatchHistoryEntry[];
   winner: TeamId | null;
   targetScore: number; // 2000
 };

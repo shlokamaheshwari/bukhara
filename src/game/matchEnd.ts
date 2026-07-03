@@ -79,11 +79,19 @@ export function endMatchAndAdvance(game: Game, opts?: { seed?: number; playerNam
         seed: opts?.seed,
       });
 
+  const newHistoryEntry = {
+    matchNumber: game.currentMatch.matchNumber,
+    teamA: scoring.void ? 0 : scoring.perTeam.A,
+    teamB: scoring.void ? 0 : scoring.perTeam.B,
+    void: scoring.void,
+  };
+
   return {
     ...game,
     teams: { A: { totalScore: newTotals.A }, B: { totalScore: newTotals.B } },
     currentMatch: nextMatch,
     matchesPlayed: game.matchesPlayed + (scoring.void ? 0 : 1),
+    matchHistory: [...(game.matchHistory ?? []), newHistoryEntry],
     winner,
   };
 }

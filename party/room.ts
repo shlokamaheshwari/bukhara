@@ -65,7 +65,11 @@ export class RoomDO extends DurableObject<Env> {
     }>('state');
     if (!stored) return;
     this.started = stored.started;
-    this.game = stored.game;
+    // Legacy games persisted before matchHistory was introduced — default to
+    // an empty list so the UI's history popover has something to render.
+    this.game = stored.game
+      ? { ...stored.game, matchHistory: stored.game.matchHistory ?? [] }
+      : null;
     this.seatToUsername = stored.seatToUsername;
     this.roomCode = stored.roomCode;
     // Rebuild presence map — restored humans start offline until they reconnect.

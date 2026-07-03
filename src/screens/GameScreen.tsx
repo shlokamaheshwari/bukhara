@@ -103,6 +103,8 @@ export default function GameScreen(props: GameScreenProps = {}) {
   // Show a floating banner when a team incurs a -200 first-drop penalty.
   const [penaltyAnnouncement, setPenaltyAnnouncement] =
     useState<{ team: 'A' | 'B'; total: number } | null>(null);
+  // Score-chip popover: shows the team's per-match history when clicked.
+  const [historyOpen, setHistoryOpen] = useState<'A' | 'B' | null>(null);
 
   const match = game.currentMatch;
   // Whose "view" is at the bottom of the table:
@@ -335,8 +337,22 @@ export default function GameScreen(props: GameScreenProps = {}) {
               0,
             );
             return (
-              <div key={t} className={`score-chip team-${t.toLowerCase()}`}>
-                Team {t} · {meldPts}
+              <div key={t} className="score-chip-wrap">
+                <button
+                  type="button"
+                  className={`score-chip score-chip-btn team-${t.toLowerCase()}`}
+                  onClick={() => setHistoryOpen((v) => (v === t ? null : t))}
+                  title="Click for per-match history"
+                >
+                  Team {t} · {meldPts}
+                </button>
+                {historyOpen === t && (
+                  <TeamHistoryPopover
+                    team={t}
+                    game={game}
+                    onClose={() => setHistoryOpen(null)}
+                  />
+                )}
               </div>
             );
           })}
@@ -563,6 +579,60 @@ export default function GameScreen(props: GameScreenProps = {}) {
         />
       )}
     </div>
+  );
+}
+
+// A small popover anchored under a team's score chip. Lists each finished
+// match with that team's score, plus the running total. No breakdown — just
+// per-match numbers.
+function TeamHistoryPopover({
+  team,
+  game,
+  onClose,
+}: {
+  team: 'A' | 'B';
+  game: Game;
+  onClose: () => void;
+}) {
+  const history = game.matchHistory ?? [];
+  const total = game.teams[team].totalScore;
+  const teamName = team === 'A' ? 'Team A' : 'Team B';
+  return (
+    <>
+      <div className="score-history-backdrop" onClick={onClose} />
+      <div className="score-history-popover" onClick={(e) => e.stopPropagation()}>
+        <div className="score-history-title">{teamName} · Series</div>
+        {history.length === 0 ? (
+          <div className="score-history-empty">No matches finished yet.</div>
+        ) : (
+          <table className="score-history-table">
+            <thead>
+              <tr>
+                <th>Match</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((h) => {
+                const pts = team === 'A' ? h.teamA : h.teamB;
+                return (
+                  <tr key={h.matchNumber} className={h.void ? 'void' : ''}>
+                    <td>Match {h.matchNumber}{h.void ? ' (void)' : ''}</td>
+                    <td className={pts >= 0 ? 'pos' : 'neg'}>
+                      {pts >= 0 ? '+' : ''}{pts}
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr className="total-row">
+                <td>Total</td>
+                <td className={total >= 0 ? 'pos' : 'neg'}>{total}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
   );
 }
 

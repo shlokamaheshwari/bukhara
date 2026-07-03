@@ -30,6 +30,7 @@ export function newGame(opts: NewGameOptions = {}): Game {
       seed: opts.seed,
     }),
     matchesPlayed: 0,
+    matchHistory: [],
     winner: null,
     targetScore: TARGET_SCORE,
   };
