@@ -423,6 +423,20 @@ function pickMeldOrDiscard(
     hand.length <= 5 || situation.oppMinHand <= 4 || situation.stockRemaining <= 10;
   const racing = situation.bhukaraTaken;
 
+  // Deadlock guard: for a 1000+ team that hasn't done its first drop yet, a
+  // drop that doesn't push the turn total to >=100 pts will make the eventual
+  // discard fail with "must total >=100", and the whole bot turn deadlocks.
+  // If we can't credibly reach 100 with the cards in hand, refuse to drop
+  // anything this turn — just discard and try again next turn.
+  const dropsWouldDeadlock =
+    !situation.firstDropDone &&
+    situation.mustFirstDropReach100 &&
+    !canReachHundred(plan);
+  if (dropsWouldDeadlock) {
+    const recent = match.discard.slice(-6);
+    return { type: 'move-discard', cardId: pickCardToDiscard(hand, situation, recent) };
+  }
+
   // ---------- Priority 0: race to close ----------------------------------
   //
   // If bhukara is already with us and we have a ganastha, aggressively try to
@@ -531,6 +545,10 @@ function pickGanasthaJump(
 }
 
 // Pick a first drop: a pure sequence that meets any first-drop constraints.
+//
+// For 1000+ teams the first drop must total >=100 pts, else `discard` will
+// reject and the bot's turn deadlocks. Return null (defer this turn's drop)
+// unless we're confident the whole plan can clear that bar.
 function pickFirstDrop(
   plan: PlayPlan,
   situation: Situation,
@@ -542,20 +560,57 @@ function pickFirstDrop(
     .sort((a, b) => b.length - a.length);
   if (candidates.length === 0) return null;
   const seq = candidates[0];
-  const total = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
   const needs100 = situation.mustFirstDropReach100;
-  // 3-card first drop is fine when the size or value is compelling — we've
-  // been sitting on cards long enough. Only skip if it's a bare 3-card seq
-  // AND we're not past 1000 AND we have a longer alternative held back.
-  if (seq.length === 3 && !needs100 && candidates.length === 0) return null;
-  // If we need ≥100 but this single sequence isn't enough, we still drop it;
-  // add-to-meld actions on later calls can bring the turn total up before the
-  // discard commits.
-  if (needs100 && total < 100 && seq.length < 5) {
-    // Very small seq is too weak on its own — but if it's all we have, drop
-    // it and hope subsequent actions get us over 100.
+
+  if (needs100) {
+    // Estimate the max total this turn: this pure seq + best triplet +
+    // best impure sequence we could realistically drop after it, all
+    // without over-committing a single card. Rough upper bound, since
+    // additions to *existing* team melds don't count toward the 100.
+    const seqPts = pointsOf(seq);
+    const usedIds = new Set(seq.map((m) => m.card.id));
+    const bestTrip = plan.triplets
+      .filter((t) => t.every((m) => !usedIds.has(m.card.id)))
+      .sort((a, b) => pointsOf(b) - pointsOf(a))[0];
+    if (bestTrip) bestTrip.forEach((m) => usedIds.add(m.card.id));
+    const bestImpure = plan.impureSequences
+      .filter((s) => s.every((m) => !usedIds.has(m.card.id)))
+      .sort((a, b) => pointsOf(b) - pointsOf(a))[0];
+    const upperBound =
+      seqPts +
+      (bestTrip ? pointsOf(bestTrip) : 0) +
+      (bestImpure ? pointsOf(bestImpure) : 0);
+    // Leave one card in hand for the discard, and be a little conservative —
+    // if the plan barely scrapes past 100 we're still risking a stall if any
+    // meld silently drops out. Require a small buffer.
+    if (upperBound < 110) return null;
   }
   return { type: 'move-drop-meld', input: { kind: 'sequence', cards: seq } };
+}
+
+function pointsOf(cards: { card: Card }[]): number {
+  return cards.reduce((s, m) => s + cardValue(m.card.rank), 0);
+}
+
+// Rough upper bound on the meld pts a 1000+ team can drop this turn from the
+// current plan. If it's short of 110, refuse to start the first drop — we'd
+// deadlock the discard.
+function canReachHundred(plan: PlayPlan): boolean {
+  const bestPure = plan.pureSequences.sort((a, b) => pointsOf(b) - pointsOf(a))[0];
+  if (!bestPure) return false;
+  const used = new Set<string>(bestPure.map((m) => m.card.id));
+  const bestTrip = plan.triplets
+    .filter((t) => t.every((m) => !used.has(m.card.id)))
+    .sort((a, b) => pointsOf(b) - pointsOf(a))[0];
+  if (bestTrip) bestTrip.forEach((m) => used.add(m.card.id));
+  const bestImpure = plan.impureSequences
+    .filter((s) => s.every((m) => !used.has(m.card.id)))
+    .sort((a, b) => pointsOf(b) - pointsOf(a))[0];
+  const total =
+    pointsOf(bestPure) +
+    (bestTrip ? pointsOf(bestTrip) : 0) +
+    (bestImpure ? pointsOf(bestImpure) : 0);
+  return total >= 110;
 }
 
 // Pick the strongest new meld to drop. `minPure` filters pure sequences.

@@ -339,22 +339,34 @@ export class RoomDO extends DurableObject<Env> {
       default: result = { ok: false, reason: 'unknown move' };
     }
 
-    // If the planner picked an illegal move, don't stall — fall back to a
-    // safe discard on the next tick. Discard is always available in may-meld.
+    // If the planner picked an illegal move, don't stall — try every card in
+    // turn as a discard until one succeeds. Discard is the safest exit from
+    // may-meld; the first-drop constraint applies uniformly to any discard,
+    // so if none work we're truly stuck and retry on the next scheduled tick.
     if (!result.ok) {
       const hand = match.players[seat].hand;
       if (match.turnPhase === 'may-meld' && hand.length > 0) {
-        const fallback = discard(match, hand[0].id);
+        for (const c of hand) {
+          const fallback = discard(match, c.id);
+          if (fallback.ok) {
+            this.game = { ...this.game, currentMatch: fallback.match };
+            this.saveState().catch(() => {});
+            this.broadcast();
+            this.scheduleBotTurnIfNeeded();
+            return;
+          }
+        }
+      } else if (match.turnPhase === 'awaiting-draw') {
+        // Same story for draw — try the deck if pick-discard was rejected.
+        const fallback = drawStock(match);
         if (fallback.ok) {
           this.game = { ...this.game, currentMatch: fallback.match };
           this.saveState().catch(() => {});
           this.broadcast();
-          this.scheduleBotTurnIfNeeded();
+          setTimeout(() => this.playBotTurn(seat, stepCount + 1), 350);
           return;
         }
       }
-      // Nothing else to do — the turn will just sit until someone joins to
-      // resolve it. In practice this never fires; the fallback above catches it.
       return;
     }
 
