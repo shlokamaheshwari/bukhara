@@ -198,19 +198,30 @@ export default function App() {
   }
 
   function onAuthed(a: Auth) { setAuth(a); }
+  function resetPerRoomState() {
+    setChatLog([]);
+    setChatUnread(0);
+    setChatOpen(false);
+    setReactions([]);
+    setMoveError(null);
+  }
   function onSignOut() {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     setAuth(null);
     setRoomCode(null);
     setRoomState(null);
     setGameState(null);
+    resetPerRoomState();
   }
-  function onEnterRoom(code: string) { setRoomCode(code); }
+  function onEnterRoom(code: string) {
+    resetPerRoomState();
+    setRoomCode(code);
+  }
   function onLeaveRoom() {
     setRoomCode(null);
     setRoomState(null);
     setGameState(null);
-    setMoveError(null);
+    resetPerRoomState();
   }
 
   // Every screen carries the theme toggle in the top-right corner.
