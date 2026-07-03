@@ -173,54 +173,6 @@
 }
 [data-theme="terminal-light"] body::before { background: transparent; }
 
-/* ASCII horizon — Terminal's own quiet backdrop. Sits behind the UI at
-   roughly the horizon line, uses slashes and pipes to draw a distant
-   mountain range in the theme's monospace face. No motion. */
-[data-theme^="terminal"] body::after {
-  content:
-    "                        /\\                                        /\\                                                                                        \A"
-    "                       /  \\               /\\                     /  \\                     /\\                                     /\\                          \A"
-    "                      /    \\             /  \\                   /    \\                   /  \\               /\\                   /  \\                         \A"
-    "         /\\          /      \\    /\\     /    \\      /\\         /      \\      /\\         /    \\    /\\      /  \\                 /    \\      /\\                 \A"
-    "        /  \\        /        \\  /  \\   /      \\    /  \\       /        \\    /  \\       /      \\  /  \\    /    \\               /      \\    /  \\                \A"
-    "   /\\  /    \\      /          \\/    \\_/        \\  /    \\     /          \\  /    \\     /        \\/    \\__/      \\    /\\        /        \\  /    \\    /\\         \A"
-    "  /  \\/      \\____/                             \\/      \\___/            \\/      \\___/                        \\__/  \\______/          \\/      \\__/  \\____   \A"
-    "_/                                                                                                                                                        \\_ ";
-  position: fixed;
-  bottom: 24vh;
-  left: 0;
-  right: 0;
-  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
-  font-size: 13px;
-  line-height: 1.1;
-  color: rgba(88, 100, 108, 0.32);
-  white-space: pre;
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
-  text-align: center;
-  letter-spacing: 0.06em;
-}
-[data-theme="terminal-light"] body::after {
-  color: rgba(120, 130, 140, 0.28);
-}
-@media (max-width: 900px) {
-  [data-theme^="terminal"] body::after {
-    font-size: 10px;
-    bottom: 26vh;
-  }
-}
-@media (max-width: 600px) {
-  [data-theme^="terminal"] body::after {
-    font-size: 8px;
-    bottom: 30vh;
-    letter-spacing: 0.03em;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  /* Nothing to disable — static art already respects reduced motion. */
-}
-
 /* Font stack: everything monospace in Terminal. Cinzel/Fraunces overrides
    for hotd would fight this; the descendant selector wins by specificity. */
 [data-theme^="terminal"] .topbar h1,
