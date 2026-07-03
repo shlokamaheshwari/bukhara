@@ -277,11 +277,16 @@ export default function App() {
   if (!gameState) {
     return <>{toggle}<div className="loading-screen"><div className="loading-inner">Dealing…</div></div></>;
   }
+  // In-game we drop the floating theme buttons — GameScreen renders its own
+  // theme controls inline in the topbar (guaranteed visible over the table).
   return (
     <>
-      {toggle}
       {reactionsLayer}
       <GameScreen
+        themePack={pack}
+        themeMode={mode}
+        onToggleThemePack={togglePack}
+        onToggleThemeMode={toggleMode}
         netGame={gameState.game}
         netHandSizes={gameState.handSizes}
         netYourSeat={gameState.yourSeat ?? 0}

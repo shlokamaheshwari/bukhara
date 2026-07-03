@@ -281,6 +281,15 @@ button.minor {
 }
 [data-theme="dark"] button.minor { background: rgba(244, 237, 221, 0.08); }
 button.minor:hover { background: var(--accent); color: var(--cream); border-color: var(--accent); }
+.topbar-theme-btn {
+  letter-spacing: 0.12em !important;
+  font-size: 11px !important;
+  padding: 7px 12px !important;
+}
+[data-theme^="hotd"] .topbar-theme-btn {
+  font-family: 'Cinzel', 'Trajan Pro', 'Copperplate', Georgia, serif;
+  letter-spacing: 0.14em !important;
+}
 
 /* Announcement banner (e.g. bukhara pickup) — slides down from top */
 .announcement-banner {

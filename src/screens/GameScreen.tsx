@@ -62,6 +62,13 @@ export type GameScreenProps = {
   netYourSeat?: PlayerId;
   netSend?: (msg: MoveMessage) => void;
   netMoveError?: string | null;
+
+  // Theme controls surfaced in the topbar so players can switch pack + mode
+  // mid-game without hunting for the floating buttons.
+  themePack?: 'editorial' | 'hotd';
+  themeMode?: 'light' | 'dark';
+  onToggleThemePack?: () => void;
+  onToggleThemeMode?: () => void;
 };
 
 const DEFAULT_NAMES: [string, string, string, string] = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
@@ -335,6 +342,24 @@ export default function GameScreen(props: GameScreenProps = {}) {
           })}
           <div className="match-chip">Match {match.matchNumber}</div>
           {game.winner && <div className="winner-chip">🏆 Team {game.winner}</div>}
+          {props.themePack && props.onToggleThemePack && (
+            <button
+              className="minor topbar-theme-btn"
+              onClick={props.onToggleThemePack}
+              title={`Theme: ${props.themePack === 'editorial' ? 'Editorial' : 'House of the Dragon'} — click to switch`}
+            >
+              {props.themePack === 'editorial' ? '⛰ Editorial' : '🐉 HotD'}
+            </button>
+          )}
+          {props.themeMode && props.onToggleThemeMode && (
+            <button
+              className="minor topbar-theme-btn"
+              onClick={props.onToggleThemeMode}
+              title={props.themeMode === 'light' ? 'Switch to dark' : 'Switch to light'}
+            >
+              {props.themeMode === 'light' ? '☾' : '☀'}
+            </button>
+          )}
           <button className="minor" onClick={onNewGame}>New game</button>
         </div>
       </header>
