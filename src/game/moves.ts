@@ -44,15 +44,25 @@ function boxHasPureSequence(box: Meld[]): boolean {
 }
 
 
-// Advance to the next player and reset per-turn state.
+// Advance to the next player and reset per-turn state. If the deck has
+// run out, the match ends here — no player should sit with a phantom draw.
+// Bhukara-taken teams still score normally with whatever's on the table;
+// otherwise it's a void match (no score change for the round).
 function advanceTurn(match: Match): Match {
   const next = ((match.currentTurn + 1) % 4) as PlayerId;
-  return {
+  const advanced: Match = {
     ...match,
     currentTurn: next,
     turnPhase: 'awaiting-draw',
     meldsCreatedThisTurn: [],
   };
+  if (advanced.stock.length === 0) {
+    return {
+      ...advanced,
+      phase: advanced.bhukaraTakenBy !== null ? 'ended-normal' : 'ended-void',
+    };
+  }
+  return advanced;
 }
 
 // ---- Move: draw stock --------------------------------------------------
@@ -461,17 +471,16 @@ export function discard(match: Match, cardId: string): MoveResult {
 }
 
 // Called by the UI at the start of a player's turn (or before drawStock) to
-// detect a forced void. Match ends with no scoring when nobody can draw.
+// detect a forced end. If the deck is empty, the match is over: score if
+// bhukara had been claimed, void otherwise.
 export function checkVoidCondition(match: Match): Match {
   if (match.phase !== 'playing') return match;
   if (match.turnPhase !== 'awaiting-draw') return match;
-  if (match.stock.length === 0 && match.discard.length === 0 && match.bhukaraTakenBy !== null) {
-    // Bhukara has already been taken and both piles empty — void.
-    return { ...match, phase: 'ended-void' };
-  }
-  if (match.stock.length === 0 && match.discard.length === 0 && match.bhukaraTakenBy === null) {
-    // Nothing to draw and bhukara still sitting there — extremely edge, treat as void.
-    return { ...match, phase: 'ended-void' };
+  if (match.stock.length === 0) {
+    return {
+      ...match,
+      phase: match.bhukaraTakenBy !== null ? 'ended-normal' : 'ended-void',
+    };
   }
   return match;
 }
