@@ -18,11 +18,13 @@ import './App.css';
 // The composite value drives the html data-theme attribute. Legacy values
 // "light" and "dark" are treated as editorial-light / editorial-dark for
 // backward compatibility with saved preferences.
-type ThemePack = 'editorial' | 'hotd';
+type ThemePack = 'editorial' | 'hotd' | 'terminal';
 type ThemeMode = 'light' | 'dark';
 const THEME_PACK_KEY = 'bhukara-theme-pack';
 const THEME_MODE_KEY = 'bhukara-theme-mode';
 const LEGACY_THEME_KEY = 'bhukara-theme';
+
+const PACK_ORDER: ThemePack[] = ['editorial', 'hotd', 'terminal'];
 
 function themeAttr(pack: ThemePack, mode: ThemeMode): string {
   return pack === 'editorial' ? mode : `${pack}-${mode}`;
@@ -37,7 +39,8 @@ function useTheme(): {
   const [pack, setPack] = useState<ThemePack>(() => {
     if (typeof window === 'undefined') return 'editorial';
     const saved = localStorage.getItem(THEME_PACK_KEY);
-    return saved === 'hotd' ? 'hotd' : 'editorial';
+    if (saved === 'hotd' || saved === 'terminal' || saved === 'editorial') return saved;
+    return 'editorial';
   });
   const [mode, setMode] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return 'light';
@@ -54,7 +57,10 @@ function useTheme(): {
     pack,
     mode,
     toggleMode: () => setMode((m) => (m === 'light' ? 'dark' : 'light')),
-    togglePack: () => setPack((p) => (p === 'editorial' ? 'hotd' : 'editorial')),
+    togglePack: () => setPack((p) => {
+      const i = PACK_ORDER.indexOf(p);
+      return PACK_ORDER[(i + 1) % PACK_ORDER.length];
+    }),
   };
 }
 
@@ -66,19 +72,25 @@ function ThemeToggles({
   onToggleMode: () => void;
   onTogglePack: () => void;
 }) {
-  const packLabel = pack === 'editorial' ? 'Editorial' : 'House of the Dragon';
-  const nextPack = pack === 'editorial' ? 'House of the Dragon' : 'Editorial';
+  const packMeta: Record<ThemePack, { label: string; icon: string; short: string }> = {
+    editorial: { label: 'Editorial', icon: '⛰', short: 'Editorial' },
+    hotd: { label: 'House of the Dragon', icon: '🐉', short: 'HotD' },
+    terminal: { label: 'Terminal', icon: '▊', short: 'Terminal' },
+  };
+  const nextIdx = (PACK_ORDER.indexOf(pack) + 1) % PACK_ORDER.length;
+  const nextLabel = packMeta[PACK_ORDER[nextIdx]].label;
+  const current = packMeta[pack];
   return (
     <div className="theme-controls">
       <button
         className="theme-pack-toggle"
         onClick={onTogglePack}
-        title={`Switch to ${nextPack}`}
-        aria-label={`Current theme ${packLabel}. Click to switch.`}
+        title={`Switch to ${nextLabel}`}
+        aria-label={`Current theme ${current.label}. Click to switch.`}
         type="button"
       >
-        {pack === 'editorial' ? '⛰' : '🐉'}
-        <span className="theme-pack-label">{pack === 'editorial' ? 'Editorial' : 'HotD'}</span>
+        {current.icon}
+        <span className="theme-pack-label">{current.short}</span>
       </button>
       <button
         className="theme-toggle"

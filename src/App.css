@@ -100,6 +100,395 @@
   --danger:       #B21B1B;
   --success:      #0E3D2E;
 }
+/* =============================================================
+   Bhukara — "Terminal" aesthetic (Theme 08)
+   Mix of code editor (VS Code Dark+/Light+) and phosphor terminal.
+   No landscape image — solid ground, JetBrains Mono everywhere,
+   syntax-highlighted team colours, sharp corners, `>` prompt prefix.
+   ============================================================= */
+[data-theme="terminal-dark"] {
+  --bg-image: none;
+  --text-primary: #D4D4D4;
+  --text-dim:     rgba(212, 212, 212, 0.80);
+  --text-faint:   rgba(212, 212, 212, 0.55);
+  --panel-bg:     rgba(37, 37, 38, 0.85);
+  --panel-bg-strong: rgba(45, 45, 48, 0.94);
+  --panel-border: #3E3E42;
+  --panel-highlight: rgba(255, 255, 255, 0.04);
+  --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --input-bg:     rgba(30, 30, 30, 0.9);
+  --input-border: #3E3E42;
+  --input-focus:  #007ACC;
+  --accent:       #4EC9B0;
+  --accent-alt:   #C586C0;
+  --card-face:    #2D2D30;
+  --card-back:    #007ACC;
+  --team-a:       #569CD6;
+  --team-b:       #CE9178;
+  --divider:      #333333;
+  --danger:       #F48771;
+  --success:      #6A9955;
+}
+[data-theme="terminal-light"] {
+  --bg-image: none;
+  --text-primary: #1F1F1F;
+  --text-dim:     rgba(31, 31, 31, 0.80);
+  --text-faint:   rgba(31, 31, 31, 0.55);
+  --panel-bg:     rgba(243, 243, 243, 0.92);
+  --panel-bg-strong: rgba(255, 255, 255, 0.96);
+  --panel-border: #D4D4D4;
+  --panel-highlight: rgba(255, 255, 255, 0.7);
+  --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+  --input-bg:     rgba(255, 255, 255, 0.9);
+  --input-border: #D4D4D4;
+  --input-focus:  #007ACC;
+  --accent:       #267F99;
+  --accent-alt:   #AF00DB;
+  --card-face:    #FFFFFF;
+  --card-back:    #0078D4;
+  --team-a:       #0000FF;
+  --team-b:       #A31515;
+  --divider:      #E5E5E5;
+  --danger:       #A31515;
+  --success:      #267F99;
+}
+/* Solid ground — no image behind Terminal */
+[data-theme="terminal-dark"] body {
+  background: #1E1E1E !important;
+  background-image: none !important;
+}
+[data-theme="terminal-light"] body {
+  background: #FFFFFF !important;
+  background-image: none !important;
+}
+/* Subtle phosphor scanlines in dark mode; nothing in light */
+[data-theme="terminal-dark"] body::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, 0.15) 3px,
+      rgba(0, 0, 0, 0.15) 4px);
+}
+[data-theme="terminal-light"] body::before { background: transparent; }
+
+/* Font stack: everything monospace in Terminal. Cinzel/Fraunces overrides
+   for hotd would fight this; the descendant selector wins by specificity. */
+[data-theme^="terminal"] .topbar h1,
+[data-theme^="terminal"] .modal-content h2,
+[data-theme^="terminal"] .modal-content h3,
+[data-theme^="terminal"] .match-end-modal h2,
+[data-theme^="terminal"] .team-name,
+[data-theme^="terminal"] .bhukara-modal-name,
+[data-theme^="terminal"] .announcement-text,
+[data-theme^="terminal"] .score-chip,
+[data-theme^="terminal"] .turn-status,
+[data-theme^="terminal"] .meld-strip-label,
+[data-theme^="terminal"] .team-box-header,
+[data-theme^="terminal"] .pile-label,
+[data-theme^="terminal"] .hand-label,
+[data-theme^="terminal"] .seat-name,
+[data-theme^="terminal"] .seat-role,
+[data-theme^="terminal"] .seat-count,
+[data-theme^="terminal"] .tb-btn,
+[data-theme^="terminal"] button.minor,
+[data-theme^="terminal"] .match-chip,
+[data-theme^="terminal"] .winner-chip {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+/* Topbar: flat editor toolbar, brand in mono */
+[data-theme^="terminal"] .topbar h1 {
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  font-size: 18px;
+}
+[data-theme="terminal-dark"] .topbar h1 {
+  text-shadow: 0 0 12px rgba(78, 201, 176, 0.25);
+}
+
+/* Score chips: bracketed, snake_case, syntax-highlighted */
+[data-theme^="terminal"] .score-chip {
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-weight: 500;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--panel-border);
+  color: var(--team-a);
+}
+[data-theme="terminal-light"] .score-chip {
+  background: rgba(0, 0, 0, 0.04);
+}
+[data-theme^="terminal"] .score-chip.team-a {
+  color: var(--team-a);
+  border-left: 2px solid var(--team-a);
+}
+[data-theme^="terminal"] .score-chip.team-b {
+  color: var(--team-b);
+  border-left: 2px solid var(--team-b);
+}
+[data-theme="terminal-dark"] .score-chip.team-a { text-shadow: 0 0 10px rgba(86, 156, 214, 0.5); }
+[data-theme="terminal-dark"] .score-chip.team-b { text-shadow: 0 0 10px rgba(206, 145, 120, 0.5); }
+[data-theme^="terminal"] .score-chip::before { content: '['; opacity: 0.6; margin-right: 3px; }
+[data-theme^="terminal"] .score-chip::after { content: ']'; opacity: 0.6; margin-left: 3px; }
+[data-theme^="terminal"] .match-chip {
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: transparent;
+  border: 1px dashed var(--panel-border);
+}
+
+/* Topbar minor buttons: VS Code button */
+[data-theme^="terminal"] .topbar button.minor {
+  background: rgba(78, 201, 176, 0.08);
+  border: 1px solid #4EC9B0;
+  color: #4EC9B0;
+  border-radius: 3px;
+  padding: 6px 12px;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+}
+[data-theme="terminal-light"] .topbar button.minor {
+  background: rgba(38, 127, 153, 0.08);
+  color: #267F99;
+  border-color: #267F99;
+}
+[data-theme^="terminal"] .topbar button.minor:hover {
+  background: rgba(78, 201, 176, 0.20);
+  color: #F0F0F0;
+}
+[data-theme="terminal-light"] .topbar button.minor:hover {
+  background: rgba(38, 127, 153, 0.20);
+  color: #FFFFFF;
+}
+
+/* Turn status: `>` prompt prefix + optional blinking cursor */
+[data-theme^="terminal"] .turn-status {
+  background: rgba(78, 201, 176, 0.08);
+  border-top: 1px solid rgba(78, 201, 176, 0.35);
+  border-bottom: 1px solid rgba(78, 201, 176, 0.35);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+[data-theme^="terminal"] .turn-status::before {
+  content: '> ';
+  color: var(--success);
+  font-weight: 700;
+  margin-right: 4px;
+}
+[data-theme^="terminal"] .turn-status::after {
+  content: '▊';
+  color: var(--success);
+  animation: terminalBlink 1s steps(2) infinite;
+  margin-left: 8px;
+}
+@keyframes terminalBlink { 50% { opacity: 0; } }
+
+/* Meld strip labels: bracketed purity, muted grey text */
+[data-theme^="terminal"] .meld-strip-label {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+[data-theme^="terminal"] .meld-strip-label .bonus { color: var(--accent); }
+[data-theme^="terminal"] .meld-purity {
+  border-radius: 2px;
+  font-size: 9px;
+  padding: 1px 5px;
+}
+[data-theme^="terminal"] .meld-purity.pure {
+  color: var(--success);
+  border-color: var(--success);
+  background: rgba(106, 153, 85, 0.14);
+}
+[data-theme^="terminal"] .meld-purity.impure {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(244, 135, 113, 0.14);
+}
+[data-theme^="terminal"] .meld-purity::before { content: '['; opacity: 0.6; margin-right: 2px; }
+[data-theme^="terminal"] .meld-purity::after { content: ']'; opacity: 0.6; margin-left: 2px; }
+
+/* Meld strip: VS Code panel treatment */
+[data-theme^="terminal"] .meld-strip {
+  border-radius: 3px;
+  border: 1px solid var(--divider);
+  border-left-width: 3px;
+  background: rgba(0, 0, 0, 0.15);
+}
+[data-theme="terminal-light"] .meld-strip { background: rgba(0, 0, 0, 0.02); }
+[data-theme^="terminal"] .team-box.team-box-a .meld-strip { border-left-color: var(--team-a); }
+[data-theme^="terminal"] .team-box.team-box-b .meld-strip { border-left-color: var(--team-b); }
+[data-theme^="terminal"] .meld-strip.pure { border-left-color: var(--success); }
+
+/* Team box header — mono */
+[data-theme^="terminal"] .team-box-header {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+}
+[data-theme^="terminal"] .empty-melds {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-faint);
+  font-style: normal;
+}
+[data-theme^="terminal"] .empty-melds::before { content: '// '; color: var(--success); }
+
+/* Deck/discard/bukhara labels */
+[data-theme^="terminal"] .pile-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+}
+
+/* Hand strip label */
+[data-theme^="terminal"] .hand-label {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+[data-theme^="terminal"] .hand-label strong {
+  color: var(--team-a);
+  font-weight: 500;
+}
+
+/* Actions toolbar: VS Code button row */
+[data-theme^="terminal"] .tb-btn {
+  border-radius: 3px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+}
+[data-theme="terminal-light"] .tb-btn { background: rgba(0, 0, 0, 0.03); }
+[data-theme^="terminal"] .tb-btn:hover {
+  border-color: var(--input-focus);
+  background: rgba(0, 122, 204, 0.10);
+  color: var(--input-focus);
+}
+[data-theme^="terminal"] .tb-btn.primary {
+  background: var(--input-focus);
+  color: #FFFFFF;
+  border-color: var(--input-focus);
+}
+[data-theme^="terminal"] .tb-btn.primary:hover {
+  background: #005A94;
+  color: #FFFFFF;
+}
+
+/* Seat avatars: mono initials, VS Code panel background */
+[data-theme^="terminal"] .seat-avatar-team-a {
+  background: linear-gradient(135deg, #1F3B5C, #569CD6) !important;
+  color: #FFFFFF;
+  font-family: 'JetBrains Mono', monospace;
+  box-shadow: 0 4px 12px rgba(86, 156, 214, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+[data-theme^="terminal"] .seat-avatar-team-b {
+  background: linear-gradient(135deg, #5C3A28, #CE9178) !important;
+  color: #FFFFFF;
+  font-family: 'JetBrains Mono', monospace;
+  box-shadow: 0 4px 12px rgba(206, 145, 120, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+[data-theme^="terminal"] .seat-turn-glow {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(78, 201, 176, 0.5);
+}
+
+/* Card faces: charcoal (dark) / white (light) with mono rank + syntax-red pips */
+[data-theme^="terminal"] .pc:not(.pc-back) {
+  background: var(--card-face);
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 4px 14px rgba(0, 0, 0, 0.4);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+}
+[data-theme="terminal-light"] .pc:not(.pc-back) {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.02),
+    0 2px 8px rgba(0, 0, 0, 0.10);
+}
+/* Kill halftone dots — terminal is flat, no printed texture */
+[data-theme^="terminal"] .pc:not(.pc-back)::before { background-image: none; }
+/* Kill the HotD double rim if it leaked through */
+[data-theme^="terminal"] .pc:not(.pc-back)::after { display: none; }
+
+/* Ranks in mono */
+[data-theme^="terminal"] .pc-rank {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* Card suit colours: VS Code error red for hearts/diamonds, default text for spades/clubs */
+[data-theme="terminal-dark"] .pc-red { color: #F48771; }
+[data-theme="terminal-dark"] .pc-black { color: #D4D4D4; }
+[data-theme="terminal-light"] .pc-red { color: #A31515; }
+[data-theme="terminal-light"] .pc-black { color: #1F1F1F; }
+
+/* Center pip: cleaner, smaller than HotD, no drop shadow */
+[data-theme^="terminal"] .pc-center {
+  font-size: 38px;
+  opacity: 0.92;
+  text-shadow: none;
+}
+[data-theme^="terminal"] .pc-sm .pc-center { font-size: 22px; }
+[data-theme^="terminal"] .pc-lg .pc-center { font-size: 54px; }
+
+/* Selected: VS Code focus outline (bright blue) */
+[data-theme^="terminal"] .pc-selected {
+  border-color: var(--input-focus);
+  box-shadow:
+    inset 0 0 0 1px var(--input-focus),
+    0 0 0 2px rgba(0, 122, 204, 0.30),
+    0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+/* Card back: VS Code blue tile with subtle diagonal chevron pattern */
+[data-theme^="terminal"] .pc-back {
+  background:
+    linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.06) 45%, rgba(255, 255, 255, 0.06) 55%, transparent 60%),
+    linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.06) 45%, rgba(255, 255, 255, 0.06) 55%, transparent 60%),
+    var(--card-back);
+  background-size: 8px 8px, 8px 8px, 100% 100%;
+  border: 1px solid #005A94;
+  border-radius: 3px;
+}
+
+/* Hand strip: subtle top rule in editor grey */
+[data-theme^="terminal"] .hand-strip {
+  border-radius: 0;
+}
+
+/* Auto-sort: text-button style */
+[data-theme^="terminal"] .auto-sort,
+[data-theme^="terminal"] button.ghost-btn {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  border-radius: 3px;
+}
+
+/* HotD-dark theme block below (unchanged): */
 [data-theme="hotd-dark"] {
   --bg-image: url('/hotd-dark.png');
   --text-primary: #F1E8D2;

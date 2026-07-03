@@ -65,7 +65,7 @@ export type GameScreenProps = {
 
   // Theme controls surfaced in the topbar so players can switch pack + mode
   // mid-game without hunting for the floating buttons.
-  themePack?: 'editorial' | 'hotd';
+  themePack?: 'editorial' | 'hotd' | 'terminal';
   themeMode?: 'light' | 'dark';
   onToggleThemePack?: () => void;
   onToggleThemeMode?: () => void;
@@ -362,9 +362,9 @@ export default function GameScreen(props: GameScreenProps = {}) {
             <button
               className="minor topbar-theme-btn"
               onClick={props.onToggleThemePack}
-              title={`Theme: ${props.themePack === 'editorial' ? 'Editorial' : 'House of the Dragon'} — click to switch`}
+              title={`Theme: ${props.themePack === 'editorial' ? 'Editorial' : props.themePack === 'hotd' ? 'House of the Dragon' : 'Terminal'} — click to switch`}
             >
-              {props.themePack === 'editorial' ? '⛰ Editorial' : '🐉 HotD'}
+              {props.themePack === 'editorial' ? '⛰ Editorial' : props.themePack === 'hotd' ? '🐉 HotD' : '▊ Terminal'}
             </button>
           )}
           {props.themeMode && props.onToggleThemeMode && (
