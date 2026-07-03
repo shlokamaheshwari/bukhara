@@ -183,16 +183,16 @@
   pointer-events: none;
   background-image:
     radial-gradient(circle,
-      rgba(255, 255, 255, 0.055) 1px,
-      transparent 1.5px);
-  background-size: 24px 24px;
+      rgba(255, 255, 255, 0.22) 1.4px,
+      transparent 1.9px);
+  background-size: 26px 26px;
   background-position: 0 0;
 }
 [data-theme="terminal-light"] body::after {
   background-image:
     radial-gradient(circle,
-      rgba(0, 0, 0, 0.06) 1px,
-      transparent 1.5px);
+      rgba(0, 0, 0, 0.20) 1.4px,
+      transparent 1.9px);
 }
 
 /* Font stack: everything monospace in Terminal. Cinzel/Fraunces overrides
