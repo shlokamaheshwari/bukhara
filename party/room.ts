@@ -300,16 +300,33 @@ export class RoomDO extends DurableObject<Env> {
     const username = this.seatToUsername[seat];
     const presence = [...this.presences.values()].find((p) => p.username === username);
     if (!presence || !presence.isBot) return;
-    setTimeout(() => this.playBotTurn(seat), 900);
+    setTimeout(() => this.playBotTurn(seat, 0), 500);
   }
 
-  private playBotTurn(seat: PlayerId): void {
+  // Runs one bot action, then schedules the next if the bot is still on turn.
+  // `stepCount` guards against an infinite loop from a repeatedly-rejected move.
+  private playBotTurn(seat: PlayerId, stepCount: number): void {
     if (!this.started || !this.game) return;
     if (this.game.currentMatch.currentTurn !== seat) return;
+    if (stepCount > 20) return; // hard stop; something is stuck
 
     const match = this.game.currentMatch;
-    const move = pickBotMove(match, seat);
-    if (!move) return;
+    let move = pickBotMove(match, seat);
+
+    // Safety net: if the planner returned nothing but the bot is on turn, force
+    // a discard so we never deadlock. If even discard isn't available (shouldn't
+    // happen), bail — the turn will time out.
+    if (!move) {
+      const hand = match.players[seat].hand;
+      if (match.turnPhase === 'may-meld' && hand.length > 0) {
+        move = { type: 'move-discard', cardId: hand[0].id };
+      } else if (match.turnPhase === 'awaiting-draw') {
+        move = { type: 'move-draw-stock' };
+      } else {
+        return;
+      }
+    }
+
     let result: { ok: true; match: typeof match } | { ok: false; reason: string };
     switch (move.type) {
       case 'move-draw-stock': result = drawStock(match); break;
@@ -319,13 +336,35 @@ export class RoomDO extends DurableObject<Env> {
       case 'move-add-to-triplet': result = addToTriplet(match, move.input); break;
       case 'move-joker': result = moveJoker(match, move.meldId, move.jokerCardId, move.newActingAs); break;
       case 'move-discard': result = discard(match, move.cardId); break;
-      default: return;
+      default: result = { ok: false, reason: 'unknown move' };
     }
-    if (!result.ok) return;
+
+    // If the planner picked an illegal move, don't stall — fall back to a
+    // safe discard on the next tick. Discard is always available in may-meld.
+    if (!result.ok) {
+      const hand = match.players[seat].hand;
+      if (match.turnPhase === 'may-meld' && hand.length > 0) {
+        const fallback = discard(match, hand[0].id);
+        if (fallback.ok) {
+          this.game = { ...this.game, currentMatch: fallback.match };
+          this.saveState().catch(() => {});
+          this.broadcast();
+          this.scheduleBotTurnIfNeeded();
+          return;
+        }
+      }
+      // Nothing else to do — the turn will just sit until someone joins to
+      // resolve it. In practice this never fires; the fallback above catches it.
+      return;
+    }
+
     this.game = { ...this.game, currentMatch: result.match };
+    this.saveState().catch(() => {});
     this.broadcast();
+
     if (this.game.currentMatch.currentTurn === seat) {
-      setTimeout(() => this.playBotTurn(seat), 700);
+      // Same bot still on turn — meld or add-to-meld happened. Continue faster.
+      setTimeout(() => this.playBotTurn(seat, stepCount + 1), 350);
     } else {
       this.scheduleBotTurnIfNeeded();
     }
