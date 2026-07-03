@@ -2637,18 +2637,30 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   --danger:       #F58AA8;
   --success:      #F1C77C;
 }
-/* Solid ground — no landscape photo behind Sakura */
+/* Solid ground + a very subtle scattered-blossom pattern so the whole
+   surface reads Sakura, not a generic gradient. Petal SVG is embedded
+   at 4-6% opacity: present, not decorative. */
 [data-theme="sakura-light"] body {
-  background: linear-gradient(180deg, #FFF3F5 0%, #FFF9F5 100%) !important;
-  background-image: none !important;
-  background-color: #FFF3F5;
+  background-color: #FFEEF3 !important;
+  background-image:
+    radial-gradient(ellipse 800px 400px at 20% 10%, rgba(245, 138, 168, 0.20), transparent 65%),
+    radial-gradient(ellipse 700px 350px at 85% 90%, rgba(106, 130, 165, 0.14), transparent 65%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'><g fill='%23C13D5F' opacity='0.055'><g transform='translate(40 40) scale(0.9)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g><g transform='translate(120 100) scale(0.7) rotate(28)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g></g></svg>") !important;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size: auto, auto, 200px 200px;
+  background-attachment: fixed !important;
 }
 [data-theme="sakura-dark"] body {
-  background: linear-gradient(180deg, #14101E 0%, #1E1728 100%) !important;
-  background-image: none !important;
-  background-color: #14101E;
+  background-color: #0B0715 !important;
+  background-image:
+    radial-gradient(ellipse 900px 500px at 20% 10%, rgba(155, 44, 74, 0.32), transparent 65%),
+    radial-gradient(ellipse 800px 400px at 85% 85%, rgba(253, 184, 99, 0.10), transparent 65%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'><g fill='%23F58AA8' opacity='0.06'><g transform='translate(40 40) scale(0.9)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g><g transform='translate(120 100) scale(0.7) rotate(28)'><ellipse cx='0' cy='-9' rx='3.6' ry='5.4'/><ellipse cx='8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(72)'/><ellipse cx='5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(144)'/><ellipse cx='-5.3' cy='7.3' rx='3.6' ry='5.4' transform='rotate(216)'/><ellipse cx='-8.6' cy='-2.8' rx='3.6' ry='5.4' transform='rotate(288)'/></g></g></svg>") !important;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size: auto, auto, 200px 200px;
+  background-attachment: fixed !important;
 }
-[data-theme^="sakura"] body::before { background: transparent; }
+[data-theme^="sakura"] body::before { background: transparent !important; }
 
 /* Vertical katakana chop mark — the poet's signature, top-right.
    Ambient, muted, part of the atmosphere. */
@@ -2718,41 +2730,86 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   opacity: 0.72;
 }
 
-/* Score chips — bordered mincho, no small-caps forcing */
+/* Score chips — soft-cornered pills with a small blossom mark on the left */
 [data-theme^="sakura"] .score-chip {
-  padding: 5px 12px;
-  font-size: 11.5px;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.03);
-  border: 1px solid var(--divider);
+  position: relative;
+  padding: 6px 14px 6px 26px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid;
+  background: rgba(255, 255, 255, 0.55);
 }
-[data-theme="sakura-dark"] .score-chip { background: rgba(255, 255, 255, 0.05); }
-[data-theme^="sakura"] .score-chip.team-a { color: var(--team-a); border-left: 2px solid var(--team-a); }
-[data-theme^="sakura"] .score-chip.team-b { color: var(--team-b); border-left: 2px solid var(--team-b); }
+[data-theme="sakura-dark"] .score-chip { background: rgba(42, 31, 50, 0.68); }
+[data-theme^="sakura"] .score-chip::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><g fill='currentColor'><ellipse cx='10' cy='4' rx='2.4' ry='3.6'/><ellipse cx='16' cy='7.5' rx='2.4' ry='3.6' transform='rotate(72 16 7.5)'/><ellipse cx='13.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(144 13.5 14.5)'/><ellipse cx='6.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(216 6.5 14.5)'/><ellipse cx='4' cy='7.5' rx='2.4' ry='3.6' transform='rotate(288 4 7.5)'/></g></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  color: inherit;
+}
+[data-theme^="sakura"] .score-chip.team-a {
+  color: var(--team-a);
+  border-color: color-mix(in srgb, var(--team-a) 55%, transparent);
+}
+[data-theme^="sakura"] .score-chip.team-b {
+  color: var(--team-b);
+  border-color: color-mix(in srgb, var(--team-b) 55%, transparent);
+}
 [data-theme^="sakura"] .match-chip {
   color: var(--text-dim);
-  padding: 5px 12px;
-  border-radius: 3px;
+  padding: 6px 14px;
+  border-radius: 999px;
   background: transparent;
-  border: 1px dashed var(--divider);
+  border: 1px solid var(--divider);
   font-size: 10.5px;
+  font-style: italic;
+  font-family: 'Iowan Old Style', 'Palatino', Georgia, serif;
+  letter-spacing: 0.06em;
 }
 
-/* Turn status — thin mincho ribbon, no ALL CAPS, no cursor */
+/* Turn status — soft pill with blossom marks left + right */
 [data-theme^="sakura"] .turn-status {
-  background: rgba(155, 44, 74, 0.06);
-  border-top: 1px solid rgba(155, 44, 74, 0.20);
-  border-bottom: 1px solid rgba(155, 44, 74, 0.20);
+  position: relative;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  border-radius: 999px;
   color: var(--text-primary);
-  padding: 8px 14px;
+  padding: 8px 34px;
   font-size: 13px;
   text-transform: none;
   letter-spacing: 0.10em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-style: normal;
 }
-[data-theme="sakura-dark"] .turn-status {
-  background: rgba(253, 184, 99, 0.08);
-  border-top-color: rgba(253, 184, 99, 0.28);
-  border-bottom-color: rgba(253, 184, 99, 0.28);
+[data-theme^="sakura"] .turn-status::before,
+[data-theme^="sakura"] .turn-status::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><g fill='%239B2C4A'><ellipse cx='10' cy='4' rx='2.4' ry='3.6'/><ellipse cx='16' cy='7.5' rx='2.4' ry='3.6' transform='rotate(72 16 7.5)'/><ellipse cx='13.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(144 13.5 14.5)'/><ellipse cx='6.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(216 6.5 14.5)'/><ellipse cx='4' cy='7.5' rx='2.4' ry='3.6' transform='rotate(288 4 7.5)'/></g></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.7;
+}
+[data-theme^="sakura"] .turn-status::before { left: 12px; }
+[data-theme^="sakura"] .turn-status::after { right: 12px; }
+[data-theme="sakura-dark"] .turn-status::before,
+[data-theme="sakura-dark"] .turn-status::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><g fill='%23FDB863'><ellipse cx='10' cy='4' rx='2.4' ry='3.6'/><ellipse cx='16' cy='7.5' rx='2.4' ry='3.6' transform='rotate(72 16 7.5)'/><ellipse cx='13.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(144 13.5 14.5)'/><ellipse cx='6.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(216 6.5 14.5)'/><ellipse cx='4' cy='7.5' rx='2.4' ry='3.6' transform='rotate(288 4 7.5)'/></g></svg>");
 }
 
 /* Team meld boxes: quiet plum/sky left rails; gold rail on pure */
@@ -2770,38 +2827,103 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   background: color-mix(in srgb, var(--accent-alt) 10%, transparent);
 }
 
-/* Toolbar & minor buttons: soft plum outline in day, amber in night */
+/* Toolbar & minor buttons: pill-shaped, italic Iowan Old Style, thin
+   hairline border — reads as a hand-inked stamp, not a system pill. */
 [data-theme^="sakura"] .tb-btn {
   border: 1px solid var(--panel-border);
   background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+  padding: 8px 16px;
   text-transform: none;
-  letter-spacing: 0.08em;
-  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  font-size: 12px;
+  font-family: 'Iowan Old Style', 'Palatino', 'Baskerville', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
 }
-[data-theme="sakura-light"] .tb-btn { background: rgba(0, 0, 0, 0.02); }
+[data-theme="sakura-light"] .tb-btn { background: rgba(0, 0, 0, 0.03); }
 [data-theme^="sakura"] .tb-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 [data-theme^="sakura"] .tb-btn.primary {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 92%, white) 0%,
+    var(--accent) 100%);
+  color: var(--card-face);
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 4px 16px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+[data-theme="sakura-dark"] .tb-btn.primary {
+  color: #14101E;
+}
+[data-theme^="sakura"] .topbar button.minor {
+  background: rgba(155, 44, 74, 0.08);
+  border: 1px solid rgba(155, 44, 74, 0.24);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-family: 'Iowan Old Style', 'Palatino', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+[data-theme="sakura-dark"] .topbar button.minor {
+  background: rgba(253, 184, 99, 0.10);
+  border-color: rgba(253, 184, 99, 0.32);
+  color: var(--accent);
+}
+[data-theme^="sakura"] .topbar button.minor:hover {
   background: var(--accent);
   color: var(--card-face);
   border-color: var(--accent);
 }
-[data-theme^="sakura"] .topbar button.minor {
-  background: rgba(155, 44, 74, 0.06);
-  border: 1px solid rgba(155, 44, 74, 0.22);
-  color: var(--accent);
+[data-theme="sakura-dark"] .topbar button.minor:hover { color: #14101E; }
+
+/* Team boxes gain a blossom ornament at their top-right corner —
+   different tint per team so the ornament also encodes which team's
+   box you're looking at. */
+[data-theme^="sakura"] .team-box {
+  position: relative;
 }
-[data-theme="sakura-dark"] .topbar button.minor {
-  background: rgba(253, 184, 99, 0.10);
-  border-color: rgba(253, 184, 99, 0.30);
-  color: var(--accent);
+[data-theme^="sakura"] .team-box::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  opacity: 0.62;
+  pointer-events: none;
+  z-index: 3;
 }
-[data-theme^="sakura"] .topbar button.minor:hover {
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
-  color: var(--card-face);
+[data-theme="sakura-light"] .team-box.team-box-a::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><g fill='%239B2C4A'><ellipse cx='10' cy='4' rx='2.4' ry='3.6'/><ellipse cx='16' cy='7.5' rx='2.4' ry='3.6' transform='rotate(72 16 7.5)'/><ellipse cx='13.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(144 13.5 14.5)'/><ellipse cx='6.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(216 6.5 14.5)'/><ellipse cx='4' cy='7.5' rx='2.4' ry='3.6' transform='rotate(288 4 7.5)'/></g><circle cx='10' cy='10' r='1.4' fill='%23F1C77C'/></svg>");
+}
+[data-theme="sakura-light"] .team-box.team-box-b::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><g fill='%236A82A5'><ellipse cx='10' cy='4' rx='2.4' ry='3.6'/><ellipse cx='16' cy='7.5' rx='2.4' ry='3.6' transform='rotate(72 16 7.5)'/><ellipse cx='13.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(144 13.5 14.5)'/><ellipse cx='6.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(216 6.5 14.5)'/><ellipse cx='4' cy='7.5' rx='2.4' ry='3.6' transform='rotate(288 4 7.5)'/></g><circle cx='10' cy='10' r='1.4' fill='%23F1C77C'/></svg>");
+}
+[data-theme="sakura-dark"] .team-box.team-box-a::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><g fill='%23F58AA8'><ellipse cx='10' cy='4' rx='2.4' ry='3.6'/><ellipse cx='16' cy='7.5' rx='2.4' ry='3.6' transform='rotate(72 16 7.5)'/><ellipse cx='13.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(144 13.5 14.5)'/><ellipse cx='6.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(216 6.5 14.5)'/><ellipse cx='4' cy='7.5' rx='2.4' ry='3.6' transform='rotate(288 4 7.5)'/></g><circle cx='10' cy='10' r='1.4' fill='%23FDB863'/></svg>");
+}
+[data-theme="sakura-dark"] .team-box.team-box-b::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><g fill='%23F1C77C'><ellipse cx='10' cy='4' rx='2.4' ry='3.6'/><ellipse cx='16' cy='7.5' rx='2.4' ry='3.6' transform='rotate(72 16 7.5)'/><ellipse cx='13.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(144 13.5 14.5)'/><ellipse cx='6.5' cy='14.5' rx='2.4' ry='3.6' transform='rotate(216 6.5 14.5)'/><ellipse cx='4' cy='7.5' rx='2.4' ry='3.6' transform='rotate(288 4 7.5)'/></g><circle cx='10' cy='10' r='1.4' fill='%23FDB863'/></svg>");
+}
+
+/* Toolbar action row (Sequence/Triplet/Discard buttons) — soft pill row */
+[data-theme^="sakura"] .toolbar { border-radius: 999px; }
+
+/* Chat + reaction floats: soften into blossom-hue */
+[data-theme^="sakura"] .chat-toggle,
+[data-theme^="sakura"] .reaction-toggle {
+  border: 1px solid var(--panel-border);
 }
 
 /* Seat avatars: blossom for Team A, sky-blue for Team B (day);
