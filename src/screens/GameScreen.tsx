@@ -939,7 +939,7 @@ function SeatSummary({
     <div className={`seat-summary ${isTurn ? 'seat-active' : ''} ${vertical ? 'seat-vertical' : ''}`}>
       <div className="seat-avatar-wrap">
         <div
-          className="seat-avatar"
+          className={`seat-avatar seat-avatar-team-${player.teamId.toLowerCase()}`}
           style={{
             background: `linear-gradient(135deg, ${light} 0%, ${dark} 100%)`,
           }}
