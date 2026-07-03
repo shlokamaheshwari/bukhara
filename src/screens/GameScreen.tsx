@@ -26,6 +26,7 @@ import { endMatchAndAdvance } from '../game/matchEnd';
 import { isPure } from '../game/melds';
 import { meldCardTotal, meldSizeBonus, scoreBreakdown } from '../game/scoring';
 import { CardFace, StackedCards } from '../ui/Card';
+import { playTurnChime, isSoundEnabled, setSoundEnabled } from '../ui/audio';
 import { autoSolveAdd, autoSolveDropSequence, autoSolveDropTriplet } from '../game/autoSolve';
 import type { MoveMessage } from '../net/messages';
 import '../ui/Card.css';
@@ -174,6 +175,19 @@ export default function GameScreen(props: GameScreenProps = {}) {
   useEffect(() => {
     setDismissedMatchEnd(null);
   }, [match.matchNumber]);
+
+  // Turn chime — fire a short two-note bell when the turn transitions and
+  // it's now the viewing seat's move. Skips on first render so we don't
+  // ding as the game boots. Solo pass-and-play triggers every turn since
+  // the viewing seat rotates with the turn.
+  const prevTurnRef = useRef<PlayerId | null>(null);
+  useEffect(() => {
+    const prev = prevTurnRef.current;
+    const now = match.currentTurn;
+    prevTurnRef.current = now;
+    if (prev === null || prev === now) return;
+    if (now === viewingSeat && match.phase === 'playing') playTurnChime();
+  }, [match.currentTurn, viewingSeat, match.phase]);
 
   function toggleSelect(cardId: string) {
     const next = new Set(selected);
@@ -389,6 +403,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
               {props.themeMode === 'light' ? '☾' : '☀'}
             </button>
           )}
+          <SoundToggle />
           <button className="minor" onClick={onNewGame}>New game</button>
         </div>
       </header>
@@ -865,6 +880,25 @@ function SetupModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function SoundToggle() {
+  const [enabled, setEnabled] = useState(() => isSoundEnabled());
+  return (
+    <button
+      className="minor topbar-theme-btn"
+      onClick={() => {
+        const next = !enabled;
+        setSoundEnabled(next);
+        setEnabled(next);
+        if (next) playTurnChime();
+      }}
+      title={enabled ? 'Mute turn chime' : 'Unmute turn chime'}
+      aria-pressed={enabled}
+    >
+      {enabled ? '🔔' : '🔕'}
+    </button>
   );
 }
 
