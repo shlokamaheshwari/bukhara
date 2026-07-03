@@ -616,6 +616,45 @@ function canReachHundred(plan: PlayPlan): boolean {
 // Pick the strongest new meld to drop. `minPure` filters pure sequences.
 // Aggressive mode accepts smaller melds because closing/reducing hand matters
 // more than perfect sizing.
+// Gap-bridging awareness. If we drop this candidate as a NEW meld, would we
+// forfeit the chance to fuse it into an existing same-suit team meld sitting
+// 1-2 slots away? Example: team has 7-8-9 diamonds already, our candidate is
+// J-Q-K diamonds, gap = slot 10. Dropping both separately locks in two small
+// melds; holding J-Q-K until we draw a 10 grows the 7-8-9 to seven cards
+// (which unlocks the +200 pure-sequence bonus).
+//
+// Returns the gap size (missing slot count) if a bridge candidate exists,
+// else null. Only checks pure sequences — impure/joker cases are handled by
+// the joker economy rules already.
+function bridgesToExistingMeld(
+  candidate: SequenceMeldCard[],
+  teamMelds: Meld[],
+): number | null {
+  if (candidate.length === 0) return null;
+  const suit = candidate[0].card.suit;
+  const cSlots = candidate.map((m) => m.actingAs as number).sort((a, b) => a - b);
+  const cMin = cSlots[0];
+  const cMax = cSlots[cSlots.length - 1];
+
+  let smallestGap: number | null = null;
+  for (const meld of teamMelds) {
+    if (meld.kind !== 'sequence' || meld.suit !== suit) continue;
+    const mSlots = meld.cards.map((c) => c.actingAs as number).sort((a, b) => a - b);
+    const mMin = mSlots[0];
+    const mMax = mSlots[mSlots.length - 1];
+    // Candidate sits above the meld, missing (cMin - mMax - 1) slots between.
+    const gapAbove = cMin - mMax - 1;
+    // Candidate sits below the meld.
+    const gapBelow = mMin - cMax - 1;
+    for (const g of [gapAbove, gapBelow]) {
+      if (g > 0 && g <= 2) {
+        if (smallestGap === null || g < smallestGap) smallestGap = g;
+      }
+    }
+  }
+  return smallestGap;
+}
+
 function pickBestDrop(
   plan: PlayPlan,
   situation: Situation,
@@ -626,10 +665,18 @@ function pickBestDrop(
   type Candidate = { input: MoveMessage; score: number };
   const candidates: Candidate[] = [];
 
-  // Pure sequences — prefer bigger.
+  // Pure sequences — prefer bigger. If the candidate bridges to an existing
+  // team meld and we still have time to wait for the connector card, skip
+  // it. In aggressive/endgame mode the bird-in-hand wins, so we take the
+  // small meld now rather than wait.
   for (const seq of plan.pureSequences) {
     if (seq.length < minPure) continue;
     if (hand.length - seq.length < 1) continue;
+    const gap = bridgesToExistingMeld(seq, situation.myTeamMelds);
+    if (gap !== null && !aggressive) {
+      // Hold the candidate — dropping it now locks us out of the merger.
+      continue;
+    }
     const pts = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
     const bonus = seq.length >= 7 ? 200 : 0;
     candidates.push({
@@ -710,7 +757,8 @@ function pickCardToDiscard(
   function partialTriplet(c: Card): number {
     return (rankCounts[c.rank] ?? 0) - 1;
   }
-  // Extends an existing team meld.
+  // Extends an existing team meld — a card at slot ±1 of a same-suit
+  // sequence, or a triplet match. Direct extensions are the highest keep.
   function extendsMyMeld(c: Card): boolean {
     for (const m of situation.myTeamMelds) {
       if (m.kind === 'sequence' && m.suit === c.suit) {
@@ -724,6 +772,21 @@ function pickCardToDiscard(
     }
     return false;
   }
+  // Connector cards — same-suit cards 2-3 slots away from a team sequence,
+  // valuable because they'd bridge a small gap and let two melds fuse into
+  // one big ganastha. Weaker than a direct extension but still worth keeping.
+  function isBridgeConnector(c: Card): boolean {
+    if (c.rank === JOKER_RANK) return false;
+    for (const m of situation.myTeamMelds) {
+      if (m.kind !== 'sequence' || m.suit !== c.suit) continue;
+      const positions = m.cards.map((cc) => cc.actingAs as number);
+      const min = Math.min(...positions), max = Math.max(...positions);
+      // 2 or 3 slots beyond either endpoint — the classic bridge zone.
+      if (c.rank === min - 2 || c.rank === min - 3) return true;
+      if (c.rank === max + 2 || c.rank === max + 3) return true;
+    }
+    return false;
+  }
 
   function keepScore(c: Card): number {
     let s = 0;
@@ -731,6 +794,7 @@ function pickCardToDiscard(
     if (adjacentSameSuit(c)) s += 4;
     s += partialTriplet(c) * 4;
     if (extendsMyMeld(c)) s += 10; // huge — a card that grows an existing meld
+    if (isBridgeConnector(c)) s += 7; // strong — the card that fuses two
     return s;
   }
 
