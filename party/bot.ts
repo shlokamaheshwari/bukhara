@@ -243,6 +243,15 @@ function findAdditionsForMeld(
     const usedIds = new Set<string>();
     const additions: SequenceMeldCard[] = [];
 
+    // Adding a joker to a sequence downgrades pure → impure. If the meld is
+    // already at ganastha (7+ cards), that swap COSTS 100 pts: pure 7+ earns
+    // a 200 size bonus, impure 7+ earns only 100. If the meld is already
+    // impure at 7+, the joker's marginal value in extending is nil (bonus
+    // doesn't grow) and it's worth several times more in a new impure
+    // sequence or a triplet ganastha jump. Either way, once at 7+ we let
+    // this meld grow only via naturals.
+    const skipJokerBridge = meld.cards.length >= 7;
+
     // Walk outward from each end, filling slot by slot. Prefer naturals; use
     // a joker only when a natural (or Ace) reachable further out justifies
     // the wildcard spend.
@@ -268,6 +277,7 @@ function findAdditionsForMeld(
         // No natural — can a joker bridge here? Only if another natural (or
         // the Ace) further out is still reachable in ≤2 slots. Otherwise the
         // joker is a wildcard set on fire.
+        if (skipJokerBridge) break;
         const jokerAvailable = jokerPool.find((j) => !usedIds.has(j.id));
         if (!jokerAvailable) break;
         const bridgeUnlocks =
@@ -292,6 +302,7 @@ function findAdditionsForMeld(
           cursor = nextSlot;
           continue;
         }
+        if (skipJokerBridge) break;
         const jokerAvailable = jokerPool.find((j) => !usedIds.has(j.id));
         if (!jokerAvailable) break;
         const bridgeUnlocks =
