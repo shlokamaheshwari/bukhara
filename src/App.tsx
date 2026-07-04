@@ -18,13 +18,13 @@ import './App.css';
 // The composite value drives the html data-theme attribute. Legacy values
 // "light" and "dark" are treated as editorial-light / editorial-dark for
 // backward compatibility with saved preferences.
-type ThemePack = 'editorial' | 'hotd' | 'terminal' | 'sakura';
+type ThemePack = 'editorial' | 'hotd' | 'terminal' | 'sakura' | 'worldsfinest';
 type ThemeMode = 'light' | 'dark';
 const THEME_PACK_KEY = 'bhukara-theme-pack';
 const THEME_MODE_KEY = 'bhukara-theme-mode';
 const LEGACY_THEME_KEY = 'bhukara-theme';
 
-const PACK_ORDER: ThemePack[] = ['editorial', 'hotd', 'terminal', 'sakura'];
+const PACK_ORDER: ThemePack[] = ['editorial', 'hotd', 'terminal', 'sakura', 'worldsfinest'];
 
 function themeAttr(pack: ThemePack, mode: ThemeMode): string {
   return pack === 'editorial' ? mode : `${pack}-${mode}`;
@@ -39,7 +39,13 @@ function useTheme(): {
   const [pack, setPack] = useState<ThemePack>(() => {
     if (typeof window === 'undefined') return 'editorial';
     const saved = localStorage.getItem(THEME_PACK_KEY);
-    if (saved === 'hotd' || saved === 'terminal' || saved === 'editorial' || saved === 'sakura') return saved;
+    if (
+      saved === 'hotd' ||
+      saved === 'terminal' ||
+      saved === 'editorial' ||
+      saved === 'sakura' ||
+      saved === 'worldsfinest'
+    ) return saved;
     return 'editorial';
   });
   const [mode, setMode] = useState<ThemeMode>(() => {
@@ -77,6 +83,7 @@ function ThemeToggles({
     hotd: { label: 'House of the Dragon', icon: '🐉', short: 'HotD' },
     terminal: { label: 'Terminal', icon: '▊', short: 'Terminal' },
     sakura: { label: 'Sakura no Uta', icon: '🌸', short: 'Sakura' },
+    worldsfinest: { label: "World's Finest", icon: '🦸', short: "World's Finest" },
   };
   const nextIdx = (PACK_ORDER.indexOf(pack) + 1) % PACK_ORDER.length;
   const nextLabel = packMeta[PACK_ORDER[nextIdx]].label;

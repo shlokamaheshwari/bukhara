@@ -68,7 +68,7 @@ export type GameScreenProps = {
 
   // Theme controls surfaced in the topbar so players can switch pack + mode
   // mid-game without hunting for the floating buttons.
-  themePack?: 'editorial' | 'hotd' | 'terminal' | 'sakura';
+  themePack?: 'editorial' | 'hotd' | 'terminal' | 'sakura' | 'worldsfinest';
   themeMode?: 'light' | 'dark';
   onToggleThemePack?: () => void;
   onToggleThemeMode?: () => void;
@@ -348,7 +348,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
 
   return (
     <div className="table-app">
-      {props.themeMode && <Companion mode={props.themeMode} />}
+      {props.themePack === 'worldsfinest' && props.themeMode && <Companion mode={props.themeMode} />}
       <header className="topbar">
         <h1>Bukhara</h1>
         <div className="scores">
@@ -385,6 +385,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
               hotd: { icon: '🐉', short: 'HotD', full: 'House of the Dragon' },
               terminal: { icon: '▊', short: 'Terminal', full: 'Terminal' },
               sakura: { icon: '🌸', short: 'Sakura', full: 'Sakura no Uta' },
+              worldsfinest: { icon: '🦸', short: "World's Finest", full: "World's Finest" },
             }[props.themePack];
             return (
               <button

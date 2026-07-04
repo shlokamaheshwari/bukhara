@@ -27,6 +27,8 @@
             'hotd-dark': '/hotd-dark.webp',
             'sakura-light': '/sakura-light.webp',
             'sakura-dark': '/sakura-dark.webp',
+            'worldsfinest-light': '/worldsfinest-light.webp',
+            'worldsfinest-dark': '/worldsfinest-dark.webp',
           };
           var key = (pack === 'editorial' ? 'editorial-' + mode : pack + '-' + mode);
           var current = themeMap[key];
@@ -38,17 +40,19 @@
             link.href = url;
             document.head.appendChild(link);
           });
-          // Companion widgets — preload the mode's own so it snaps in with
-          // the game screen; prefetch the other for instant mode-swap.
-          var companionCurrent = mode === 'dark' ? '/batmobile-parked.webp' : '/krypto-perched.webp';
-          var companionOther = mode === 'dark' ? '/krypto-perched.webp' : '/batmobile-parked.webp';
-          [[companionCurrent, 'preload'], [companionOther, 'prefetch']].forEach(function (pair) {
-            var link = document.createElement('link');
-            link.rel = pair[1];
-            link.as = 'image';
-            link.href = pair[0];
-            document.head.appendChild(link);
-          });
+          // Companion widgets are World's Finest-only: preload the active
+          // mode's sprite when the user is on that pack; otherwise stay quiet.
+          if (pack === 'worldsfinest') {
+            var companionCurrent = mode === 'dark' ? '/batmobile-parked.webp' : '/krypto-perched.webp';
+            var companionOther = mode === 'dark' ? '/krypto-perched.webp' : '/batmobile-parked.webp';
+            [[companionCurrent, 'preload'], [companionOther, 'prefetch']].forEach(function (pair) {
+              var link = document.createElement('link');
+              link.rel = pair[1];
+              link.as = 'image';
+              link.href = pair[0];
+              document.head.appendChild(link);
+            });
+          }
         } catch (e) { /* localStorage disabled — CSS will fetch on demand */ }
       })();
     </script>
