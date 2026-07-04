@@ -311,18 +311,20 @@ function findAdditionsForMeld(
     return { meldId: meld.id, kind: 'sequence', seqAdd: additions };
   }
 
-  // Triplet — every natural of the meld's rank, plus at most one joker if
-  // the triplet doesn't already contain one.
+  // Triplet — every natural of the meld's rank. A joker is only spent as a
+  // triplet extension when it *directly* unlocks ganastha (final size 7+).
+  // Growing a 3-triplet to a 4-triplet with a joker is pure waste: the joker
+  // is worth several times more in a sequence, and the triplet was already
+  // valid pure without it. The user complaint that surfaced this: bots
+  // dropping "Trip 5 (5♣ 5♥ 5♠ 2♦)" when the 2♦ contributes nothing.
   const rank = meld.rank;
   const naturals = hand.filter((c) => c.rank === rank);
   const alreadyHasJoker = meld.cards.some((c) => c.isJoker);
   const additions: TripletMeldCard[] = naturals.map((c) => ({ card: c, isJoker: false }));
   if (!alreadyHasJoker && rank !== JOKER_RANK) {
     const joker = hand.find((c) => c.rank === JOKER_RANK);
-    // Only spend a joker on a triplet if the meld isn't already at ganastha
-    // (7+ cards) — extending an already-huge triplet with a joker is fine,
-    // but past that the joker is worth more in a sequence.
-    if (joker && meld.cards.length < 7) {
+    const finalSize = meld.cards.length + naturals.length + 1;
+    if (joker && finalSize >= 7) {
       additions.push({ card: joker, isJoker: true });
     }
   }
@@ -655,6 +657,23 @@ function bridgesToExistingMeld(
   return smallestGap;
 }
 
+// Scoring penalty for dropping a triplet of a "connector" rank. Ranks 4-10
+// slot into many possible sequences; a triplet of them permanently forfeits
+// that flexibility (for us and for our partner). High-rank triplets (J, Q,
+// K, A) and low-rank (3) have fewer sequence homes, so they're cheaper to
+// lock. Skip the penalty entirely in racing / endgame — closing matters
+// more than flexibility once bhukara is out or the stock is thin.
+function midRankTripletPenalty(
+  rank: number,
+  situation: Situation,
+  aggressive: boolean,
+): number {
+  if (rank < 4 || rank > 10) return 0;
+  if (aggressive || situation.bhukaraTaken || situation.oppMinHand <= 4) return 0;
+  if (situation.stockRemaining <= 10) return 0;
+  return 18; // beats 3-card pure sequences and small triplets; loses to bigger drops
+}
+
 function pickBestDrop(
   plan: PlayPlan,
   situation: Situation,
@@ -684,15 +703,21 @@ function pickBestDrop(
       score: pts + bonus + seq.length * 6, // length matters
     });
   }
-  // Triplets — only after team has a pure sequence in box.
+  // Triplets — only after team has a pure sequence in box. Mid-rank ranks
+  // (4-10) are the "connector" cards for sequences; locking three of them
+  // into a triplet forfeits every 3-4-5, 4-5-6, 5-6-7 you might have grown.
+  // Penalize those so a bigger pure sequence or a high-rank triplet beats
+  // them out, unless we're in endgame / racing (where closing beats
+  // preserving flexibility).
   if (situation.hasPureInBox) {
     for (const trip of plan.triplets) {
       if (trip.length < 3) continue;
       if (hand.length - trip.length < 1) continue;
       const pts = trip.reduce((s, m) => s + cardValue(m.card.rank), 0);
+      const midPenalty = midRankTripletPenalty(trip[0].card.rank, situation, aggressive);
       candidates.push({
         input: { type: 'move-drop-meld', input: { kind: 'triplet', cards: trip } },
-        score: pts + trip.length * 4,
+        score: pts + trip.length * 4 - midPenalty,
       });
     }
   }
