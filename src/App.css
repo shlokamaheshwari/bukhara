@@ -2008,6 +2008,44 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   opacity: 0.75;
 }
 .landing-error-dismiss:hover { opacity: 1; }
+
+/* Companion widget — Krypto in light modes, Batmobile in dark. Draped
+   over the left edge of the play area. Fixed position so it stays put
+   as the layout scrolls or resizes. */
+.companion {
+  position: fixed;
+  left: 14px;
+  bottom: 180px;
+  width: 160px;
+  height: 160px;
+  z-index: 6;
+  pointer-events: none;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.10);
+  animation: companionSit 5s ease-in-out infinite;
+}
+.companion-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+@keyframes companionSit {
+  0%, 100% { transform: translateY(0) rotate(-0.5deg); }
+  50%      { transform: translateY(-3px) rotate(0.5deg); }
+}
+@media (max-width: 900px) {
+  .companion { width: 108px; height: 108px; bottom: 160px; left: 8px; }
+}
+@media (max-width: 600px) {
+  .companion { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .companion { animation: none; }
+}
 .landing-primary {
   width: 100%;
   padding: 14px;

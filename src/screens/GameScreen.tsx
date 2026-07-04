@@ -27,6 +27,7 @@ import { isPure } from '../game/melds';
 import { meldCardTotal, meldSizeBonus, scoreBreakdown } from '../game/scoring';
 import { CardFace, StackedCards } from '../ui/Card';
 import { playTurnChime, isSoundEnabled, setSoundEnabled } from '../ui/audio';
+import { Companion } from '../ui/Companion';
 import { autoSolveAdd, autoSolveDropSequence, autoSolveDropTriplet } from '../game/autoSolve';
 import type { MoveMessage } from '../net/messages';
 import '../ui/Card.css';
@@ -347,6 +348,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
 
   return (
     <div className="table-app">
+      {props.themeMode && <Companion mode={props.themeMode} />}
       <header className="topbar">
         <h1>Bukhara</h1>
         <div className="scores">
