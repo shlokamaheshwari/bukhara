@@ -78,7 +78,7 @@
    Cinzel display, Baskerville body, Copperplate labels.
    ============================================================= */
 [data-theme="hotd-light"] {
-  --bg-image: url('/hotd-light.webp?v=2');
+  --bg-image: url('/hotd-light.webp?v=3');
   --text-primary: #17110A;
   --text-dim:     rgba(23, 17, 10, 0.85);
   --text-faint:   rgba(23, 17, 10, 0.62);
@@ -512,7 +512,7 @@
 
 /* HotD-dark theme block below (unchanged): */
 [data-theme="hotd-dark"] {
-  --bg-image: url('/hotd-dark.webp?v=2');
+  --bg-image: url('/hotd-dark.webp?v=3');
   --text-primary: #F1E8D2;
   --text-dim:     rgba(241, 232, 210, 0.88);
   --text-faint:   rgba(241, 232, 210, 0.65);
