@@ -348,7 +348,6 @@ export default function GameScreen(props: GameScreenProps = {}) {
 
   return (
     <div className="table-app">
-      {props.themePack === 'worldsfinest' && props.themeMode && <Companion mode={props.themeMode} />}
       <header className="topbar">
         <h1>Bukhara</h1>
         <div className="scores">
@@ -433,6 +432,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
             isTurn={match.currentTurn === seatAt(viewingSeat, 'top')}
             label="Partner"
             handSize={props.netHandSizes?.[seatAt(viewingSeat, 'top')]}
+            companionMode={props.themePack === 'worldsfinest' ? props.themeMode : undefined}
           />
         </div>
         <div className="seat seat-left">
@@ -988,12 +988,14 @@ function SeatSummary({
   vertical,
   label,
   handSize,
+  companionMode,
 }: {
   player: { id: PlayerId; name: string; teamId: 'A' | 'B'; hand: Card[] };
   isTurn: boolean;
   vertical?: boolean;
   label?: string;
   handSize?: number; // authoritative count from server (hand itself is redacted for opponents)
+  companionMode?: 'light' | 'dark';
 }) {
   const initials = player.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || 'P?';
   const avatarPalette = {
@@ -1003,6 +1005,7 @@ function SeatSummary({
   const [dark, light] = avatarPalette[player.teamId];
   return (
     <div className={`seat-summary ${isTurn ? 'seat-active' : ''} ${vertical ? 'seat-vertical' : ''}`}>
+      {companionMode && <Companion mode={companionMode} />}
       <div className="seat-avatar-wrap">
         <div
           className={`seat-avatar seat-avatar-team-${player.teamId.toLowerCase()}`}
