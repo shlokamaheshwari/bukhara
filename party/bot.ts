@@ -742,21 +742,30 @@ function pickBestDrop(
       });
     }
   }
-  // Impure sequences — 2s go to jokers. Require size ≥ 5 (or 4 with only one
-  // joker) unless we're aggressive. A 3-card impure is essentially a joker
-  // set on fire.
+  // Impure sequences — 2s go to jokers. The user complaint that surfaced
+  // this tightening: bot dropped "SEQ ♣ 40PT IMPURE" as 8-9-2j-J (4 cards,
+  // 1 joker). Impure < 7 earns ZERO size bonus, so the joker was spent for
+  // raw card value only, when it was worth several times more saved for a
+  // triplet ganastha jump (+100) or a bigger bridge later.
+  //
+  // Tightened bar:
+  //   - Non-aggressive: 1-joker needs ≥5 cards (was 4), 2-joker needs ≥6.
+  //   - Joker cost in the scorer is much higher when the meld doesn't reach
+  //     ganastha (no bonus to earn).
   if (situation.hasPureInBox) {
     for (const seq of plan.impureSequences) {
       const jokerCount = seq.filter((m) => m.isJoker).length;
-      const minSize = aggressive ? 3 : (jokerCount <= 1 ? 4 : 5);
+      const minSize = aggressive ? 3 : (jokerCount <= 1 ? 5 : 6);
       if (seq.length < minSize) continue;
       if (hand.length - seq.length < 1) continue;
       const pts = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
-      // Penalize joker usage — the pts already count the joker's 10, but a
-      // joker used here is a joker unavailable elsewhere.
+      const reachesGanastha = seq.length >= 7;
+      // A joker in a ganastha impure earns its +100 bonus; anywhere shorter
+      // it's just consuming a wildcard for card-value scraps.
+      const jokerCost = reachesGanastha ? 10 : 22;
       candidates.push({
         input: { type: 'move-drop-meld', input: { kind: 'sequence', cards: seq } },
-        score: pts + seq.length * 5 - jokerCount * 12,
+        score: pts + seq.length * 5 - jokerCount * jokerCost,
       });
     }
   }
