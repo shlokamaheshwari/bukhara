@@ -657,21 +657,31 @@ function bridgesToExistingMeld(
   return smallestGap;
 }
 
-// Scoring penalty for dropping a triplet of a "connector" rank. Ranks 4-10
-// slot into many possible sequences; a triplet of them permanently forfeits
-// that flexibility (for us and for our partner). High-rank triplets (J, Q,
-// K, A) and low-rank (3) have fewer sequence homes, so they're cheaper to
-// lock. Skip the penalty entirely in racing / endgame — closing matters
-// more than flexibility once bhukara is out or the stock is thin.
-function midRankTripletPenalty(
+// Scoring penalty when the bot considers dropping a new triplet. Prior
+// version only penalized mid-rank (4-10); real matches then produced 8
+// triplets vs 2 sequences in a single team's play because high-rank (J,
+// Q, K, A) triplets came through unpenalized and mid-rank ones were only
+// nudged. Now:
+//   - Every triplet gets a base penalty (variety > stacking).
+//   - Ranks 4-10 get extra, because those cards are true sequence
+//     connectors — locking three of them forfeits every 3-4-5, 4-5-6,
+//     5-6-7 the team could grow.
+//   - Below 2 team sequences in the box, apply a ×1.5 multiplier: we
+//     want the bot to actively try for a second sequence before piling
+//     up triplets.
+//   - Racing / endgame skips the whole thing — closing beats variety.
+function tripletDropPenalty(
   rank: number,
   situation: Situation,
   aggressive: boolean,
 ): number {
-  if (rank < 4 || rank > 10) return 0;
   if (aggressive || situation.bhukaraTaken || situation.oppMinHand <= 4) return 0;
   if (situation.stockRemaining <= 10) return 0;
-  return 18; // beats 3-card pure sequences and small triplets; loses to bigger drops
+  let penalty = 12; // base — makes every triplet a lesser move than a comparable sequence
+  if (rank >= 4 && rank <= 10) penalty += 18; // connector ranks are especially costly
+  const teamSeqCount = situation.myTeamMelds.filter((m) => m.kind === 'sequence').length;
+  if (teamSeqCount < 2) penalty = Math.round(penalty * 1.5);
+  return penalty;
 }
 
 function pickBestDrop(
@@ -714,10 +724,10 @@ function pickBestDrop(
       if (trip.length < 3) continue;
       if (hand.length - trip.length < 1) continue;
       const pts = trip.reduce((s, m) => s + cardValue(m.card.rank), 0);
-      const midPenalty = midRankTripletPenalty(trip[0].card.rank, situation, aggressive);
+      const penalty = tripletDropPenalty(trip[0].card.rank, situation, aggressive);
       candidates.push({
         input: { type: 'move-drop-meld', input: { kind: 'triplet', cards: trip } },
-        score: pts + trip.length * 4 - midPenalty,
+        score: pts + trip.length * 4 - penalty,
       });
     }
   }
