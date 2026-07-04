@@ -22,7 +22,7 @@
 
 /* ---- LIGHT theme ---- */
 :root, [data-theme="light"] {
-  --bg-image: url('/mountain-light.webp');
+  --bg-image: url('/mountain-light.webp?v=2');
   --text-primary: #1C1E22;
   --text-dim:     rgba(28, 30, 34, 0.62);
   --text-faint:   rgba(28, 30, 34, 0.4);
@@ -47,7 +47,7 @@
 
 /* ---- DARK theme ---- */
 [data-theme="dark"] {
-  --bg-image: url('/mountain-dark.webp');
+  --bg-image: url('/mountain-dark.webp?v=2');
   --text-primary: #F4EDDD;
   --text-dim:     rgba(244, 237, 221, 0.7);
   --text-faint:   rgba(244, 237, 221, 0.4);
@@ -78,7 +78,7 @@
    Cinzel display, Baskerville body, Copperplate labels.
    ============================================================= */
 [data-theme="hotd-light"] {
-  --bg-image: url('/hotd-light.webp');
+  --bg-image: url('/hotd-light.webp?v=2');
   --text-primary: #17110A;
   --text-dim:     rgba(23, 17, 10, 0.85);
   --text-faint:   rgba(23, 17, 10, 0.62);
@@ -512,7 +512,7 @@
 
 /* HotD-dark theme block below (unchanged): */
 [data-theme="hotd-dark"] {
-  --bg-image: url('/hotd-dark.webp');
+  --bg-image: url('/hotd-dark.webp?v=2');
   --text-primary: #F1E8D2;
   --text-dim:     rgba(241, 232, 210, 0.88);
   --text-faint:   rgba(241, 232, 210, 0.65);
@@ -2674,7 +2674,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
    katakana chop mark `サクラノウタ` in the far-right margin.
    ============================================================= */
 [data-theme="sakura-light"] {
-  --bg-image: url('/sakura-light.webp');
+  --bg-image: url('/sakura-light.webp?v=2');
   --text-primary: #2C0B18;
   --text-dim:     rgba(44, 11, 24, 0.88);
   --text-faint:   rgba(44, 11, 24, 0.68);
@@ -2697,7 +2697,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   --success:      #6A82A5;
 }
 [data-theme="sakura-dark"] {
-  --bg-image: url('/sakura-dark.webp');
+  --bg-image: url('/sakura-dark.webp?v=2');
   --text-primary: #F8ECF1;
   --text-dim:     rgba(248, 236, 241, 0.90);
   --text-faint:   rgba(248, 236, 241, 0.70);
@@ -3529,7 +3529,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
    (Gotham night, bat-signal in the clouds). The bg image ships painted;
    the palette carries cape-red / gold on light, bat-yellow on dark. */
 [data-theme="worldsfinest-light"] {
-  --bg-image: url('/worldsfinest-light.webp');
+  --bg-image: url('/worldsfinest-light.webp?v=2');
   --text-primary: #0F1424;
   --text-dim:     rgba(15, 20, 36, 0.88);
   --text-faint:   rgba(15, 20, 36, 0.68);
@@ -3552,7 +3552,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   --success:      #1E5FA8;
 }
 [data-theme="worldsfinest-dark"] {
-  --bg-image: url('/worldsfinest-dark.webp');
+  --bg-image: url('/worldsfinest-dark.webp?v=2');
   --text-primary: #F0EBDD;
   --text-dim:     rgba(240, 235, 221, 0.88);
   --text-faint:   rgba(240, 235, 221, 0.68);

@@ -20,15 +20,19 @@
         try {
           var pack = localStorage.getItem('bhukara-theme-pack') || 'editorial';
           var mode = localStorage.getItem('bhukara-theme-mode') || 'light';
+          // ?v=2 busts the browser cache after the sharper q92 re-encode.
+          // Vercel serves these with `Cache-Control: immutable`, so URLs
+          // without a version bump would keep serving the old blurry copies
+          // from disk. Bump the number here + in App.css when re-encoding.
           var themeMap = {
-            'editorial-light': '/mountain-light.webp',
-            'editorial-dark': '/mountain-dark.webp',
-            'hotd-light': '/hotd-light.webp',
-            'hotd-dark': '/hotd-dark.webp',
-            'sakura-light': '/sakura-light.webp',
-            'sakura-dark': '/sakura-dark.webp',
-            'worldsfinest-light': '/worldsfinest-light.webp',
-            'worldsfinest-dark': '/worldsfinest-dark.webp',
+            'editorial-light': '/mountain-light.webp?v=2',
+            'editorial-dark': '/mountain-dark.webp?v=2',
+            'hotd-light': '/hotd-light.webp?v=2',
+            'hotd-dark': '/hotd-dark.webp?v=2',
+            'sakura-light': '/sakura-light.webp?v=2',
+            'sakura-dark': '/sakura-dark.webp?v=2',
+            'worldsfinest-light': '/worldsfinest-light.webp?v=2',
+            'worldsfinest-dark': '/worldsfinest-dark.webp?v=2',
           };
           var key = (pack === 'editorial' ? 'editorial-' + mode : pack + '-' + mode);
           var current = themeMap[key];
