@@ -2013,40 +2013,45 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
 .landing-error-dismiss:hover { opacity: 1; }
 
 /* Companion widget — Krypto in light modes, Batmobile in dark.
-   Perched on top of the actions toolbar (Draw / Meld / Discard / …),
-   left-anchored so it doesn't collide with the wrapping button rows,
-   with its bottom edge overlapping the toolbar's top edge so it reads
-   as a pet lying on a windowsill. .toolbar is position: relative. */
+   Perched on the top-right of the actions toolbar. No card frame:
+   we strip border/radius/box-shadow so the pet doesn't read as a
+   floating tile. A gradient mask fades the bottom into the toolbar
+   surface so the pet's painted ledge dissolves into the real one,
+   and a drop-shadow filter (which respects the mask's alpha) gives
+   soft depth around the actual visible pixels — not a rectangle.
+   .toolbar is position: relative. */
 .companion {
   position: absolute;
-  left: 16px;
-  bottom: calc(100% - 14px);   /* overlap the toolbar edge by 14px */
-  width: 108px;
-  height: 108px;
+  right: 12px;
+  bottom: calc(100% - 10px);   /* overlap toolbar edge by 10px */
+  width: 128px;
+  height: 128px;
   z-index: 3;
   pointer-events: none;
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.35),
-    0 0 0 1px rgba(255, 255, 255, 0.10);
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
   animation: companionSit 5s ease-in-out infinite;
 }
 .companion-img {
   width: 100%;
   height: 100%;
+  /* Crop to the top of the source so the pet's head/upper body sits
+     high; the painted ledge below gets masked away. */
   object-fit: cover;
+  object-position: 50% 22%;
   display: block;
+  /* Feather the bottom so the character melts into the toolbar. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0.7) 78%, transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0.7) 78%, transparent 100%);
 }
 @keyframes companionSit {
-  0%, 100% { transform: translateY(0)   rotate(-0.5deg); }
-  50%      { transform: translateY(-3px) rotate(0.5deg); }
+  0%, 100% { transform: translateY(0)   rotate(-0.4deg); }
+  50%      { transform: translateY(-3px) rotate(0.4deg); }
 }
 @media (max-width: 900px) {
-  .companion { width: 88px; height: 88px; bottom: calc(100% - 12px); }
+  .companion { width: 104px; height: 104px; bottom: calc(100% - 8px); right: 10px; }
 }
 @media (max-width: 600px) {
-  .companion { width: 72px; height: 72px; bottom: calc(100% - 10px); left: 10px; }
+  .companion { width: 84px; height: 84px; bottom: calc(100% - 6px); right: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .companion { animation: none; }
