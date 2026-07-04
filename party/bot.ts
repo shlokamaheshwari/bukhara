@@ -771,7 +771,19 @@ function pickBestDrop(
   }
 
   candidates.sort((a, b) => b.score - a.score);
-  return candidates[0]?.input ?? null;
+  const best = candidates[0];
+  if (!best) return null;
+  // Quality floor. Every penalty above (mid-rank triplets, thin joker
+  // impures) is meant to say "this drop is worse than doing nothing" —
+  // but pickBestDrop used to ship candidates[0] regardless of sign, so a
+  // Trip-4 at -13 pts still got dropped when it was the only option. Now
+  // if the best candidate scores below the floor, return null so
+  // pickMeldOrDiscard falls through to a plain discard and holds the cards
+  // for a better turn. Aggressive / racing / endgame lower the bar to zero
+  // because dumping cards matters more than sizing.
+  const floor = aggressive ? 0 : 12;
+  if (best.score < floor) return null;
+  return best.input;
 }
 
 // Which card of the hand should we throw? Every candidate is scored on:
