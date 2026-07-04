@@ -432,7 +432,6 @@ export default function GameScreen(props: GameScreenProps = {}) {
             isTurn={match.currentTurn === seatAt(viewingSeat, 'top')}
             label="Partner"
             handSize={props.netHandSizes?.[seatAt(viewingSeat, 'top')]}
-            companionMode={props.themePack === 'worldsfinest' ? props.themeMode : undefined}
           />
         </div>
         <div className="seat seat-left">
@@ -512,6 +511,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
                 }
                 onNextMatch={onNextMatch}
                 showNextMatch={matchOver && !game.winner}
+                companionMode={props.themePack === 'worldsfinest' ? props.themeMode : undefined}
               />
               <CurrentHand
                 player={viewingPlayer}
@@ -918,6 +918,7 @@ function ActionsToolbar({
   canUndo,
   onNextMatch,
   showNextMatch,
+  companionMode,
 }: {
   match: Match;
   selectedCount: number;
@@ -931,6 +932,7 @@ function ActionsToolbar({
   canUndo: boolean;
   onNextMatch: () => void;
   showNextMatch: boolean;
+  companionMode?: 'light' | 'dark'; // World's Finest: Krypto (light) / Batmobile (dark) perched on top
 }) {
   const canDraw = canAct && match.turnPhase === 'awaiting-draw' && match.stock.length > 0;
   const canPick = canAct && match.turnPhase === 'awaiting-draw' && match.discard.length > 0;
@@ -940,6 +942,7 @@ function ActionsToolbar({
 
   return (
     <div className="toolbar">
+      {companionMode && <Companion mode={companionMode} />}
       <div className="toolbar-group">
         <span className="toolbar-label">Draw</span>
         <button className="tb-btn" onClick={onDraw} disabled={!canDraw}>
@@ -988,14 +991,12 @@ function SeatSummary({
   vertical,
   label,
   handSize,
-  companionMode,
 }: {
   player: { id: PlayerId; name: string; teamId: 'A' | 'B'; hand: Card[] };
   isTurn: boolean;
   vertical?: boolean;
   label?: string;
   handSize?: number; // authoritative count from server (hand itself is redacted for opponents)
-  companionMode?: 'light' | 'dark';
 }) {
   const initials = player.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || 'P?';
   const avatarPalette = {
@@ -1005,7 +1006,6 @@ function SeatSummary({
   const [dark, light] = avatarPalette[player.teamId];
   return (
     <div className={`seat-summary ${isTurn ? 'seat-active' : ''} ${vertical ? 'seat-vertical' : ''}`}>
-      {companionMode && <Companion mode={companionMode} />}
       <div className="seat-avatar-wrap">
         <div
           className={`seat-avatar seat-avatar-team-${player.teamId.toLowerCase()}`}

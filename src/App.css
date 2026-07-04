@@ -1233,7 +1233,6 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   display: flex; flex-direction: column;
   align-items: center;
   gap: 10px;
-  position: relative; /* anchors the Companion widget above the box */
 }
 .seat-avatar-wrap { position: relative; width: 60px; height: 60px; }
 .seat-avatar {
@@ -1532,6 +1531,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   border-radius: 14px;
   flex-wrap: wrap;
   box-shadow: none;
+  position: relative; /* anchor for the World's Finest Companion widget */
 }
 .toolbar-group { display: flex; align-items: center; gap: 8px; }
 .toolbar-group + .toolbar-group { padding-left: 16px; border-left: 1px solid var(--divider); }
@@ -2013,15 +2013,16 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
 .landing-error-dismiss:hover { opacity: 1; }
 
 /* Companion widget — Krypto in light modes, Batmobile in dark.
-   Perched on top of the partner seat's box, its bottom edge overlapping
-   the box's top edge so it reads as a real pet lying on a windowsill.
-   Positioned by the .seat-summary parent (which is position: relative). */
+   Perched on top of the actions toolbar (Draw / Meld / Discard / …),
+   left-anchored so it doesn't collide with the wrapping button rows,
+   with its bottom edge overlapping the toolbar's top edge so it reads
+   as a pet lying on a windowsill. .toolbar is position: relative. */
 .companion {
   position: absolute;
-  left: 50%;
-  bottom: calc(100% - 18px);   /* overlap the box edge by 18px */
-  width: 128px;
-  height: 128px;
+  left: 16px;
+  bottom: calc(100% - 14px);   /* overlap the toolbar edge by 14px */
+  width: 108px;
+  height: 108px;
   z-index: 3;
   pointer-events: none;
   border-radius: 14px;
@@ -2029,7 +2030,6 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.35),
     0 0 0 1px rgba(255, 255, 255, 0.10);
-  transform: translateX(-50%);
   animation: companionSit 5s ease-in-out infinite;
 }
 .companion-img {
@@ -2038,16 +2038,15 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   object-fit: cover;
   display: block;
 }
-/* Animation keeps the X-centering baked in so translateX(-50%) survives. */
 @keyframes companionSit {
-  0%, 100% { transform: translateX(-50%) translateY(0)   rotate(-0.5deg); }
-  50%      { transform: translateX(-50%) translateY(-3px) rotate(0.5deg); }
+  0%, 100% { transform: translateY(0)   rotate(-0.5deg); }
+  50%      { transform: translateY(-3px) rotate(0.5deg); }
 }
 @media (max-width: 900px) {
-  .companion { width: 104px; height: 104px; bottom: calc(100% - 14px); }
+  .companion { width: 88px; height: 88px; bottom: calc(100% - 12px); }
 }
 @media (max-width: 600px) {
-  .companion { width: 84px; height: 84px; bottom: calc(100% - 10px); }
+  .companion { width: 72px; height: 72px; bottom: calc(100% - 10px); left: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .companion { animation: none; }
