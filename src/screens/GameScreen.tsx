@@ -607,7 +607,7 @@ export default function GameScreen(props: GameScreenProps = {}) {
           </div>
 
           <div className="turn-status">
-            <strong>{currentPlayer.name}'s turn</strong> · Team {currentPlayer.teamId} · <code>{match.turnPhase}</code>
+            <strong>{currentPlayer.name}'s turn</strong> · Team {currentPlayer.teamId} · {turnPhaseLabel(match.turnPhase)}
             {matchOver && ` · Match ${match.phase}`}
           </div>
           {error && <div className="table-error">⚠ {error}</div>}
@@ -1008,6 +1008,16 @@ function SetupModal({
       </div>
     </div>
   );
+}
+
+function turnPhaseLabel(phase: string): string {
+  switch (phase) {
+    case 'awaiting-draw': return 'draw a card';
+    case 'may-meld': return 'meld or discard';
+    case 'awaiting-discard': return 'must discard';
+    case 'awaiting-post-bhukara-discard': return 'discard for bhukara';
+    default: return phase;
+  }
 }
 
 function SoundToggle() {

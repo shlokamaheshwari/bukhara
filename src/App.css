@@ -2980,15 +2980,18 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
     line-height: 1.4;
   }
 
-  /* Piles float in the top-left area, just right of the hamburger,
-     LEFT of the partner avatar. Deck sits bare (no box); the discard
-     pile keeps a small box so it reads as a container players TAP
-     to see what was thrown. */
+  /* Deck + Discard + Bukhara collapse to text-only pill chips in the
+     top strip. Card graphics are removed entirely — their counts are
+     already exposed in the toolbar buttons ("↓ Deck (38)", "↩ Discard
+     (0)"), and the visual card mini-graphics were (a) overlapping the
+     meld boxes, (b) adding zero information over the count, (c) using
+     unscalable panels that broke visually on phone. Text chips fit
+     inside row 1 unambiguously. Discard tap-to-view is preserved. */
   .piles {
-    position: absolute;
-    top: calc(2px + env(safe-area-inset-top, 0px));
-    left: 52px;                      /* right of the 38px hamburger + gap */
-    z-index: 5;
+    position: fixed;                 /* anchor to viewport, not ancestor */
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    left: calc(56px + env(safe-area-inset-left, 0px));
+    z-index: 30;                     /* above meld boxes and everything else */
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
@@ -2998,59 +3001,70 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
     flex-direction: row;
     width: auto;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
   }
   .pile {
-    min-width: 0;
-    gap: 2px;
-    flex-direction: column;
+    display: flex;
+    flex-direction: row;
     align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: color-mix(in srgb, var(--panel-bg-strong) 85%, transparent);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    min-width: 0;
+    height: 26px;
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
   .pile-label {
-    font-size: 8px;
-    letter-spacing: 1px;
+    font-size: 10px;
+    letter-spacing: 0.3px;
     color: var(--text-primary);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    text-shadow: none;
+    white-space: nowrap;
+    text-transform: none;
   }
-  .pile .pc, .pile .pc-back, .pile .pc-md, .pile .pc-lg {
-    --pc-w: 26px !important;
-    --pc-h: 36px !important;
-    width: 26px !important;
-    height: 36px !important;
-    border-radius: 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  }
-  /* Discard pile: keeps its small box treatment because it's an
-     interactable container (tap to open the pile viewer). */
-  .discard-pile {
-    padding: 3px 5px;
-    background: var(--panel-bg);
-    border: 1px solid var(--panel-border);
-    border-radius: 6px;
-  }
-  .discard-fan { padding-left: 8px; min-height: 30px; }
-  .discard-fan .pc { --pc-w: 26px !important; --pc-h: 36px !important; width: 26px !important; height: 36px !important; }
+  /* Card graphics inside piles: hidden. Info is in the label + toolbar. */
+  .pile .pc,
+  .pile .pc-back,
+  .pile .pc-md,
+  .pile .pc-lg,
+  .pile .stacked-cards,
+  .pile .discard-fan { display: none !important; }
+  /* discard-pile inherits the .pile pill styling above; no extra
+     overrides needed. Preserve min-width/box defaults from desktop
+     doesn't apply here because .pile already sets them. */
 
-  /* Bukhara chip in the top-right — also floats, no panel background. */
+  /* Bukhara: same pill treatment, top-right position. The stacked card
+     graphic was breaking visually — just show the count as a chip. */
   .bhukara-side {
-    background: transparent !important;
-    border: none !important;
+    background: color-mix(in srgb, var(--panel-bg-strong) 85%, transparent) !important;
+    border: 1px solid var(--panel-border) !important;
+    border-radius: 999px !important;
     box-shadow: none !important;
-    backdrop-filter: none !important;
-    padding: 0;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    padding: 4px 10px !important;
+    height: 26px;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
+    align-self: center;
+    flex-direction: row;
   }
   .bhukara-side .pile-label {
-    font-size: 8px;
+    font-size: 10px;
     color: var(--text-primary);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    text-shadow: none;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+    text-transform: none;
   }
-  .bhukara-side .stacked-cards {
-    transform: scale(0.5);
-    transform-origin: center;
-    margin: -12px -8px;
-  }
+  .bhukara-side .stacked-cards,
+  .bhukara-side .pc,
+  .bhukara-side .pc-back,
+  .bhukara-side .bhukara-taken { display: none !important; }
 
   /* Team meld boxes ARE the point of the layout — they need proper
      panel treatment so the melds inside read as a curated collection,
@@ -3092,14 +3106,17 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   .empty-melds { display: none; }
 
   /* .table-center is now just team-boxes (piles are absolutely
-     positioned). Turn-status was originally inside .table-center too;
-     make it a floating pill at the bottom of the middle row. */
+     positioned relative to .table, not this element). Turn-status
+     was originally inside .table-center too; make it a floating pill
+     at the bottom of the middle row. */
   .table > .table-center {
     display: flex;
     flex-direction: column;
     gap: 0;
     padding: 2px;
-    position: relative;
+    /* NOTE: intentionally NOT position: relative so the .piles child
+       anchors to .table's positioning context (top strip), not to
+       .table-center (which sits inside row 2). */
   }
   /* .piles is position: absolute above — pulled out of flow so it doesn't
      take flex space here. Team-boxes fill the whole column. */
