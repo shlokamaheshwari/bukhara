@@ -2425,11 +2425,12 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
    escape hatch there.
    ============================================================= */
 
-/* Phone-shaped viewports: portrait (max-width 768px) OR any landscape short
-   enough to be a phone rotated sideways (max-height 500px). Without the
-   height query, iPhone landscape (812x375) would try to render the full
-   desktop layout in 375px of vertical space and fall apart. */
-@media (max-width: 768px), (max-height: 500px) {
+/* Portrait phones only. Landscape gets a different treatment further down
+   that keeps the desktop table shape (opponents T/L/R around the center)
+   just scaled to fit a 375px-tall viewport — because that's how every
+   real mobile card game plays and stacking 4 rows in landscape squashes
+   everything. */
+@media (max-width: 768px) and (orientation: portrait) {
   /* iOS Safari zooms into any input under 16px on focus and doesn't zoom
      back out. Push every input to a safe base so the page never gets
      locked into a zoomed state mid-flow. */
@@ -2695,88 +2696,163 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   .reveal-text { font-size: 14px; }
 }
 
-/* Landscape phone override — extra compression for the ~375px vertical
-   budget. Portrait mobile stacks vertically; landscape has to fit that
-   same stack in half the height. Trim every band. */
+/* Landscape phones — keep the DESKTOP table shape (opponents around
+   the center, hand at the bottom) and just scale everything down to
+   fit 812x375. This is what commercial mobile card games do; stacking
+   4 rows here makes each row ~90px which squashes cards below the
+   readable threshold.
+
+   The one thing we hard-override from the desktop grid is min-height:
+   desktop sets it to 620px which won't fit in a 375px viewport. */
 @media (orientation: landscape) and (max-height: 500px) {
+  .table-app {
+    height: 100vh;    /* fallback */
+    height: 100dvh;   /* respects browser chrome */
+    overflow: hidden;
+  }
+  .topbar { flex-shrink: 0; }
+
+  /* Restore the desktop 3-col table layout. Compressed columns for
+     opponent seats, tight rows so the center + hand both fit. */
+  .table {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr) 96px;
+    grid-template-rows: 60px minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 6px;
+    margin: 4px;
+    min-height: 0;    /* undo desktop's 620px */
+    flex: 1;
+  }
+  /* Desktop grid assignments already put seats in the right positions;
+     the portrait-only media query above doesn't apply so those rules
+     stay in force. But re-affirm them anyway to be safe against future
+     specificity fights. */
+  .table > .seat-top    { grid-column: 2; grid-row: 1; }
+  .table > .bhukara-side { grid-column: 3; grid-row: 1; flex-direction: row; padding: 4px 6px; }
+  .table > .seat-left   { grid-column: 1; grid-row: 2; }
+  .table > .seat-right  { grid-column: 3; grid-row: 2; }
+  .table > .table-center {
+    grid-column: 2; grid-row: 2;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+  }
+  .table > .seat-bottom {
+    grid-column: 1 / -1; grid-row: 3;
+    padding: 6px 8px;
+    border-radius: 12px;
+  }
+
+  /* Topbar compressed */
   .topbar {
-    padding: 6px 12px;
+    padding: 5px 12px;
     padding-right: 56px;
-    /* In landscape the notch is on the LEFT (portrait rotated CCW) or
-       RIGHT (portrait rotated CW). Give both sides some breathing room. */
     padding-left: calc(12px + env(safe-area-inset-left, 0px));
+    margin: calc(4px + env(safe-area-inset-top, 0px)) 6px 0;
   }
   .topbar h1 { font-size: 15px; }
   .score-chip { padding: 4px 8px; font-size: 10px; }
   .score-chip strong { font-size: 12px; }
   .match-chip { padding: 3px 8px; font-size: 9px; }
+  button.minor { padding: 4px 8px; font-size: 9px; }
 
   .theme-controls {
-    top: calc(8px + env(safe-area-inset-top, 0px));
-    right: calc(10px + env(safe-area-inset-right, 0px));
+    top: calc(6px + env(safe-area-inset-top, 0px));
+    right: calc(8px + env(safe-area-inset-right, 0px));
     gap: 4px;
   }
-  .theme-toggle { width: 32px; height: 32px; font-size: 13px; }
-  .theme-pack-toggle { height: 32px; padding: 0 8px; font-size: 12px; }
+  .theme-toggle { width: 30px; height: 30px; font-size: 12px; }
+  .theme-pack-toggle { height: 30px; padding: 0 8px; font-size: 12px; }
   .theme-pack-label { font-size: 9px; }
 
-  .table { gap: 6px; padding: 6px; margin: 4px; }
-  .seat-summary { padding: 5px 8px; gap: 3px; }
-  .seat-avatar-wrap, .seat-avatar { width: 32px; height: 32px; font-size: 13px; }
-  .seat-name { font-size: 11px; }
-  .seat-count { font-size: 9px; }
+  /* Opponent seats: vertical stack of avatar + name + count, small. */
+  .seat-summary {
+    padding: 4px 6px;
+    min-width: 0;
+    gap: 3px;
+    border-radius: 10px;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .seat-avatar-wrap, .seat-avatar { width: 30px; height: 30px; font-size: 12px; }
+  .seat-turn-glow { inset: -3px; }
+  .team-dot { width: 8px; height: 8px; }
+  .seat-role { display: none; }
+  .seat-name { font-size: 10px; }
+  .seat-count { font-size: 8px; letter-spacing: 0.5px; }
 
-  .piles { padding: 6px 8px; gap: 10px; }
+  /* Piles + Bukhara compact */
+  .piles { padding: 6px; gap: 10px; }
+  .pile { min-width: 0; gap: 4px; }
   .pile-label { font-size: 8px; letter-spacing: 1px; }
-  .bhukara-side { padding: 6px 8px; gap: 4px; }
+  .bhukara-side .pile-label { font-size: 8px; }
+  .discard-fan { padding-left: 20px; min-height: 46px; }
 
-  .team-boxes { gap: 6px; }
-  .team-box { padding: 8px; min-height: 56px; border-radius: 10px; }
-  .team-box-header { font-size: 11px; margin-bottom: 4px; }
-  .meld-strip { padding: 4px 6px; margin: 3px 0; }
-  .meld-strip-label { font-size: 8px; }
+  /* Team boxes side by side (desktop layout) with tight spacing. */
+  .team-boxes { grid-template-columns: 1fr 1fr; gap: 6px; max-width: none; }
+  .team-box { padding: 6px 8px; min-height: 50px; border-radius: 8px; }
+  .team-box-header { font-size: 10px; margin-bottom: 4px; }
+  .meld-strip { padding: 4px 6px; margin: 2px 0; border-radius: 6px; }
+  .meld-strip-label { font-size: 8px; letter-spacing: 0.5px; }
 
-  .turn-status { font-size: 10px; padding: 4px 10px; }
-  .turn-status strong { font-size: 12px; }
+  .turn-status { font-size: 10px; padding: 3px 10px; }
+  .turn-status strong { font-size: 11px; }
 
-  .seat-bottom { padding: 6px; }
-  .toolbar { padding: 5px 6px; gap: 4px; margin-bottom: 4px; }
+  /* Toolbar tight */
+  .toolbar { padding: 4px 6px; gap: 4px; margin-bottom: 4px; }
+  .toolbar-group { gap: 3px; }
+  .toolbar-group + .toolbar-group { padding-left: 6px; border-left: none; }
   .toolbar-label { font-size: 8px; margin-right: 1px; }
-  .tb-btn { padding: 8px 10px; min-height: 38px; font-size: 10px; }
+  .tb-btn {
+    padding: 7px 10px;
+    min-height: 38px;   /* still hit-target-friendly */
+    font-size: 10px;
+    letter-spacing: 0.2px;
+  }
   .selected-count { padding: 3px 6px; font-size: 9px; }
 
-  .hand-strip { min-height: 74px; padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px)); }
-  .hand-section { min-height: 68px; padding: 3px 4px; }
+  /* Hand strip + cards */
+  .hand-strip {
+    min-height: 68px;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .hand-section { min-height: 60px; padding: 3px 4px; flex-shrink: 0; }
   .hand-strip .pc, .hand-strip .pc-md { --pc-w: 42px; --pc-h: 60px; }
-  /* Same principle at 42-wide card: leave ~30px of face visible. */
-  .card-with-indicator + .card-with-indicator { margin-left: -12px; }
+  .card-with-indicator + .card-with-indicator { margin-left: -14px; }
+  .hand-label { font-size: 10px; }
+  .hand-label strong { font-size: 11px; }
+  .hand-hint { display: none; }
 
-  /* Companion widget — the toolbar becomes really short in landscape;
-     shrink further and pull tight to the corner. */
-  .companion { width: 74px; height: 74px; bottom: calc(100% - 6px); right: 8px; }
+  /* Companion perched over the toolbar edge, small enough not to
+     eclipse buttons. */
+  .companion { width: 70px; height: 70px; bottom: calc(100% - 6px); right: 8px; }
 
-  /* Auth / landing / lobby panels — in portrait mobile they're full-width
-     sheets. In landscape, height is the scarce resource; compress vertical
-     padding so the form fits without scrolling. */
+  /* Auth / landing / lobby — compress vertical padding so forms fit. */
   .auth-panel,
   .landing-panel,
-  .lobby-panel { padding: 18px 22px; border-radius: 14px; }
+  .lobby-panel { padding: 18px 22px; border-radius: 14px; max-width: 100%; }
   .auth-logo { font-size: 24px; margin-bottom: 12px; }
   .auth-tabs { margin-bottom: 12px; }
   .auth-form { gap: 10px; }
   .auth-form input { padding: 10px 14px; }
   .auth-submit { padding: 12px; }
 
-  /* Lobby: put seats in 2 columns instead of 1 so the page doesn't scroll
-     off the bottom in landscape. */
   .lobby-panel.wide { padding: 16px 20px; }
   .lobby-seats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .lobby-seat { padding: 10px; min-height: 100px; }
   .your-controls { padding: 10px 14px; }
 
-  /* Modals — cap height at 88vh in landscape so the close button stays
-     reachable above the browser chrome. */
-  .modal-content { max-height: 88vh; }
+  /* iOS zoom-defeat */
+  input, select, textarea { font-size: 16px !important; }
+
+  .modal-content { max-height: 88vh; padding: 18px 20px; }
 }
 
 /* Very small phones — trim further. */
