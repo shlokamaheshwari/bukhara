@@ -2755,6 +2755,29 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   /* Companion widget — the toolbar becomes really short in landscape;
      shrink further and pull tight to the corner. */
   .companion { width: 74px; height: 74px; bottom: calc(100% - 6px); right: 8px; }
+
+  /* Auth / landing / lobby panels — in portrait mobile they're full-width
+     sheets. In landscape, height is the scarce resource; compress vertical
+     padding so the form fits without scrolling. */
+  .auth-panel,
+  .landing-panel,
+  .lobby-panel { padding: 18px 22px; border-radius: 14px; }
+  .auth-logo { font-size: 24px; margin-bottom: 12px; }
+  .auth-tabs { margin-bottom: 12px; }
+  .auth-form { gap: 10px; }
+  .auth-form input { padding: 10px 14px; }
+  .auth-submit { padding: 12px; }
+
+  /* Lobby: put seats in 2 columns instead of 1 so the page doesn't scroll
+     off the bottom in landscape. */
+  .lobby-panel.wide { padding: 16px 20px; }
+  .lobby-seats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .lobby-seat { padding: 10px; min-height: 100px; }
+  .your-controls { padding: 10px 14px; }
+
+  /* Modals — cap height at 88vh in landscape so the close button stays
+     reachable above the browser chrome. */
+  .modal-content { max-height: 88vh; }
 }
 
 /* Very small phones — trim further. */
