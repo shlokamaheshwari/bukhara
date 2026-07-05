@@ -2414,7 +2414,11 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
    escape hatch there.
    ============================================================= */
 
-@media (max-width: 768px) {
+/* Phone-shaped viewports: portrait (max-width 768px) OR any landscape short
+   enough to be a phone rotated sideways (max-height 500px). Without the
+   height query, iPhone landscape (812x375) would try to render the full
+   desktop layout in 375px of vertical space and fall apart. */
+@media (max-width: 768px), (max-height: 500px) {
   /* Header — wrap and shrink. */
   .topbar {
     padding: 10px 14px;
@@ -2583,8 +2587,9 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   }
   .toolbar-label { font-size: 9px; margin-right: 2px; letter-spacing: 1px; }
   .tb-btn {
-    padding: 8px 10px;
-    font-size: 11px;
+    padding: 10px 14px;
+    min-height: 44px;   /* Apple's recommended tap target minimum */
+    font-size: 12px;
     letter-spacing: 0.3px;
   }
   .selected-count { padding: 4px 8px; font-size: 10px; letter-spacing: 1px; }
@@ -2656,6 +2661,58 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   /* Reveal gate. */
   .reveal-inner { padding: 24px 20px; }
   .reveal-text { font-size: 14px; }
+}
+
+/* Landscape phone override — extra compression for the ~375px vertical
+   budget. Portrait mobile stacks vertically; landscape has to fit that
+   same stack in half the height. Trim every band. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .topbar {
+    padding: 6px 12px;
+    padding-right: 56px;
+  }
+  .topbar h1 { font-size: 15px; }
+  .score-chip { padding: 4px 8px; font-size: 10px; }
+  .score-chip strong { font-size: 12px; }
+  .match-chip { padding: 3px 8px; font-size: 9px; }
+
+  .theme-controls { top: 8px; right: 10px; gap: 4px; }
+  .theme-toggle { width: 32px; height: 32px; font-size: 13px; }
+  .theme-pack-toggle { height: 32px; padding: 0 8px; font-size: 12px; }
+  .theme-pack-label { font-size: 9px; }
+
+  .table { gap: 6px; padding: 6px; margin: 4px; }
+  .seat-summary { padding: 5px 8px; gap: 3px; }
+  .seat-avatar-wrap, .seat-avatar { width: 32px; height: 32px; font-size: 13px; }
+  .seat-name { font-size: 11px; }
+  .seat-count { font-size: 9px; }
+
+  .piles { padding: 6px 8px; gap: 10px; }
+  .pile-label { font-size: 8px; letter-spacing: 1px; }
+  .bhukara-side { padding: 6px 8px; gap: 4px; }
+
+  .team-boxes { gap: 6px; }
+  .team-box { padding: 8px; min-height: 56px; border-radius: 10px; }
+  .team-box-header { font-size: 11px; margin-bottom: 4px; }
+  .meld-strip { padding: 4px 6px; margin: 3px 0; }
+  .meld-strip-label { font-size: 8px; }
+
+  .turn-status { font-size: 10px; padding: 4px 10px; }
+  .turn-status strong { font-size: 12px; }
+
+  .seat-bottom { padding: 6px; }
+  .toolbar { padding: 5px 6px; gap: 4px; margin-bottom: 4px; }
+  .toolbar-label { font-size: 8px; margin-right: 1px; }
+  .tb-btn { padding: 8px 10px; min-height: 38px; font-size: 10px; }
+  .selected-count { padding: 3px 6px; font-size: 9px; }
+
+  .hand-strip { min-height: 74px; padding: 4px 2px; }
+  .hand-section { min-height: 68px; padding: 3px 4px; }
+  .hand-strip .pc, .hand-strip .pc-md { --pc-w: 42px; --pc-h: 60px; }
+
+  /* Companion widget — the toolbar becomes really short in landscape;
+     shrink further and pull tight to the corner. */
+  .companion { width: 74px; height: 74px; bottom: calc(100% - 6px); right: 8px; }
 }
 
 /* Very small phones — trim further. */
