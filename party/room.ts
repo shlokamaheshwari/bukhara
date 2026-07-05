@@ -437,6 +437,22 @@ export class RoomDO extends DurableObject<Env> {
       return;
     }
 
+    // Post-series reset: only allowed once a winner is crowned. Same room,
+    // same players (including bots), scores back to 0.
+    if (msg.type === 'new-game') {
+      if (this.game.winner === null) {
+        if (senderWs) this.sendTo(senderWs, { type: 'move-rejected', reason: 'Series is still in progress' });
+        return;
+      }
+      const names = [0, 1, 2, 3].map((i) =>
+        this.game!.currentMatch.players[i as PlayerId].name,
+      ) as [string, string, string, string];
+      this.game = newGame({ playerNames: names });
+      this.broadcast();
+      this.scheduleBotTurnIfNeeded();
+      return;
+    }
+
     if (mySeat !== this.game.currentMatch.currentTurn) {
       if (senderWs) this.sendTo(senderWs, { type: 'move-rejected', reason: 'Not your turn' });
       return;

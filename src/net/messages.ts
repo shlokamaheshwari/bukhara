@@ -85,6 +85,7 @@ export type MoveMessage =
   | { type: 'move-joker'; meldId: string; jokerCardId: string; newActingAs: SeqPos }
   | { type: 'move-discard'; cardId: string }
   | { type: 'move-undo-turn' }
-  | { type: 'next-match' };
+  | { type: 'next-match' }
+  | { type: 'new-game' };
 
 export type ClientMessage = LobbyMessage | MoveMessage;

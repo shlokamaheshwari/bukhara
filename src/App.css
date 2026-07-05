@@ -4175,3 +4175,173 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   --danger:       #FF3A2A;
   --success:      #F5C518;
 }
+
+/* ============ Series winner banner ============
+   Shown as a full-screen overlay when either team crosses the 2000-point
+   target. Announces the winner + offers a "Play again" reset that keeps
+   the room but zeroes the scores. */
+.winner-banner-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, #000 65%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: winnerFade 0.28s ease-out;
+}
+@keyframes winnerFade {
+  from { opacity: 0; background: color-mix(in srgb, #000 0%, transparent); }
+  to   { opacity: 1; }
+}
+.winner-banner {
+  width: 100%;
+  max-width: 480px;
+  background: var(--panel-bg-strong);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  padding: 32px 28px 24px;
+  text-align: center;
+  animation: winnerRise 0.42s cubic-bezier(0.34, 1.35, 0.55, 1);
+}
+@keyframes winnerRise {
+  from { transform: translateY(24px) scale(0.96); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+.winner-banner-crown {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+  animation: winnerCrown 1.6s ease-in-out infinite;
+}
+@keyframes winnerCrown {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-4px) rotate(2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .winner-banner-crown { animation: none; }
+  .winner-banner       { animation: none; }
+  .winner-banner-backdrop { animation: none; }
+}
+.winner-banner-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.winner-banner-headline {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 38px;
+  line-height: 1.1;
+  color: var(--text-primary);
+  margin: 0 0 18px;
+  letter-spacing: -0.01em;
+}
+.winner-banner-scores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.winner-banner-team {
+  padding: 12px 8px;
+  border-radius: 12px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0.65;
+  transition: opacity 0.2s;
+}
+.winner-banner-team.is-winner {
+  opacity: 1;
+  border-width: 2px;
+}
+.winner-banner-team.is-winner.team-a { border-color: var(--team-a); box-shadow: 0 6px 24px color-mix(in srgb, var(--team-a) 35%, transparent); }
+.winner-banner-team.is-winner.team-b { border-color: var(--team-b); box-shadow: 0 6px 24px color-mix(in srgb, var(--team-b) 35%, transparent); }
+.winner-banner-team-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.winner-banner-team.is-winner.team-a .winner-banner-team-label { color: var(--team-a); }
+.winner-banner-team.is-winner.team-b .winner-banner-team-label { color: var(--team-b); }
+.winner-banner-team-score {
+  font-family: 'Fraunces', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.winner-banner-margin {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 22px;
+  letter-spacing: 0.02em;
+}
+.winner-banner-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.winner-banner-primary {
+  padding: 14px 20px;
+  background: var(--accent);
+  color: var(--cream, #FFF9F0);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.winner-banner-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.winner-banner-secondary {
+  padding: 12px 20px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.winner-banner-secondary:hover {
+  color: var(--text-primary);
+  border-color: var(--text-dim);
+}
+
+/* Mobile landscape: banner still fills, but with tighter padding so the
+   whole card fits inside the 375px viewport comfortably. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .winner-banner-backdrop { padding: 12px; }
+  .winner-banner {
+    padding: 18px 22px 16px;
+    max-width: 440px;
+    border-radius: 16px;
+  }
+  .winner-banner-crown { font-size: 40px; margin-bottom: 4px; }
+  .winner-banner-headline { font-size: 26px; margin-bottom: 12px; }
+  .winner-banner-scores { gap: 8px; margin-bottom: 4px; }
+  .winner-banner-team { padding: 8px 6px; }
+  .winner-banner-team-score { font-size: 22px; }
+  .winner-banner-margin { font-size: 11px; margin-bottom: 14px; }
+  .winner-banner-primary { padding: 12px 16px; font-size: 13px; }
+  .winner-banner-secondary { padding: 10px 16px; font-size: 12px; }
+}

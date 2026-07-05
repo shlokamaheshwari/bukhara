@@ -263,6 +263,25 @@ export default function GameScreen(props: GameScreenProps = {}) {
     if (onExit) onExit();
     else setShowSetup(true);
   }
+  // Post-series reset — invoked from the winner banner. Restarts the
+  // series with the same players in the same room and scores back to 0.
+  function onPlayAgain() {
+    if (isMP) {
+      netSend!({ type: 'new-game' });
+    } else {
+      const names: [string, string, string, string] = [
+        game.currentMatch.players[0].name,
+        game.currentMatch.players[1].name,
+        game.currentMatch.players[2].name,
+        game.currentMatch.players[3].name,
+      ];
+      setGame(newGame({ playerNames: names }));
+    }
+    setSelected(new Set());
+    setError(null);
+    setDismissedMatchEnd(null);
+    setReveal({ revealedFor: 0 });
+  }
 
   function onSetupSubmit(names: [string, string, string, string]) {
     const g = newGame({ playerNames: names });
@@ -396,6 +415,18 @@ export default function GameScreen(props: GameScreenProps = {}) {
 
   return (
     <div className="table-app">
+      {/* Series winner banner: shown once a team crosses the 2000-point
+          target. Everything below is still rendered underneath (the final
+          board state), but this overlay commands attention and offers the
+          "Play again" reset. */}
+      {game.winner && (
+        <WinnerBanner
+          winner={game.winner}
+          totals={{ A: game.teams.A.totalScore, B: game.teams.B.totalScore }}
+          onPlayAgain={onPlayAgain}
+          onClose={onExit}
+        />
+      )}
       <header className="topbar">
         <h1>Bukhara</h1>
         <div className="scores">
@@ -1018,6 +1049,55 @@ function turnPhaseLabel(phase: string): string {
     case 'awaiting-post-bhukara-discard': return 'discard for bhukara';
     default: return phase;
   }
+}
+
+function WinnerBanner({
+  winner,
+  totals,
+  onPlayAgain,
+  onClose,
+}: {
+  winner: 'A' | 'B';
+  totals: { A: number; B: number };
+  onPlayAgain: () => void;
+  onClose?: () => void;
+}) {
+  const winnerScore = totals[winner];
+  const loserScore = winner === 'A' ? totals.B : totals.A;
+  return (
+    <div className="winner-banner-backdrop">
+      <div className="winner-banner">
+        <div className="winner-banner-crown" aria-hidden="true">🏆</div>
+        <div className="winner-banner-eyebrow">Series over · target 2000</div>
+        <h1 className="winner-banner-headline">
+          Team {winner} wins
+        </h1>
+        <div className="winner-banner-scores">
+          <div className={`winner-banner-team ${winner === 'A' ? 'is-winner team-a' : 'team-a'}`}>
+            <span className="winner-banner-team-label">Team A</span>
+            <span className="winner-banner-team-score">{totals.A}</span>
+          </div>
+          <div className={`winner-banner-team ${winner === 'B' ? 'is-winner team-b' : 'team-b'}`}>
+            <span className="winner-banner-team-label">Team B</span>
+            <span className="winner-banner-team-score">{totals.B}</span>
+          </div>
+        </div>
+        <div className="winner-banner-margin">
+          Won by {winnerScore - loserScore} points
+        </div>
+        <div className="winner-banner-actions">
+          <button className="winner-banner-primary" onClick={onPlayAgain}>
+            Play again — same room
+          </button>
+          {onClose && (
+            <button className="winner-banner-secondary" onClick={onClose}>
+              Leave room
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function SoundToggle() {
