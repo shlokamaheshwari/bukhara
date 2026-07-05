@@ -1133,6 +1133,87 @@ function CurrentHand({
     setLayout(next);
   }
 
+  // Touch drag path. HTML5 drag events (onDragStart/Over/Drop below) work
+  // on desktop mouse but are janky on iOS Safari — they require a long-
+  // press to initiate and can't compete with the browser's scroll gesture.
+  // Pointer events, gated to pointerType === 'touch', give us native
+  // touch drag with an 8px activation threshold and no long-press delay.
+  //
+  // Drop targets are discovered via document.elementFromPoint + data
+  // attributes we stamp on hand-slots, section gaps, and the end-target.
+  //
+  // A synthetic click always follows a touchend; if a real drag happened
+  // we suppress that click so it doesn't also toggle selection on the
+  // grabbed card. Short taps that never crossed the activation threshold
+  // fall through and let the click fire normally.
+  const suppressNextClickRef = useRef(false);
+  function onCardPointerDown(e: React.PointerEvent, cardId: string) {
+    if (e.pointerType !== 'touch') return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let active = false;
+    type Target =
+      | { kind: 'in-section'; section: number; index: number }
+      | { kind: 'gap-before'; section: number }
+      | { kind: 'end' };
+    let latest: Target | null = null;
+    let currentBundle: DragBundle | null = null;
+
+    const move = (mv: PointerEvent) => {
+      if (!active) {
+        if (Math.hypot(mv.clientX - startX, mv.clientY - startY) > 8) {
+          active = true;
+          currentBundle = bundleFor(cardId);
+          setDragBundle(currentBundle);
+        }
+        return;
+      }
+      const el = document.elementFromPoint(mv.clientX, mv.clientY);
+      const slot = el?.closest('[data-drop-slot]') as HTMLElement | null;
+      const gap = el?.closest('[data-drop-gap]') as HTMLElement | null;
+      const end = el?.closest('[data-drop-end]');
+      let t: Target | null = null;
+      if (slot) {
+        const [sec, idx] = slot.dataset.dropSlot!.split('-').map(Number);
+        const rect = slot.getBoundingClientRect();
+        const isLeft = mv.clientX - rect.left < rect.width / 2;
+        t = { kind: 'in-section', section: sec, index: isLeft ? idx : idx + 1 };
+      } else if (gap) {
+        t = { kind: 'gap-before', section: Number(gap.dataset.dropGap) };
+      } else if (end) {
+        t = { kind: 'end' };
+      }
+      latest = t;
+      setDropTarget(t);
+    };
+
+    const finish = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      if (active) {
+        if (latest && currentBundle) {
+          moveBundle(currentBundle, latest);
+        }
+        suppressNextClickRef.current = true;
+        setDragBundle(null);
+        setDropTarget(null);
+      }
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }
+
+  function handleToggle(cardId: string) {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
+    onToggle(cardId);
+  }
+
   function autoSort() {
     // Alternate red / black so neighbouring suits are visually distinct.
     // Order: ♦ ♠ ♥ ♣ (red, black, red, black).
@@ -1172,6 +1253,7 @@ function CurrentHand({
                 active={dragBundle !== null}
                 highlighted={dropTarget?.kind === 'gap-before' && dropTarget.section === sIdx}
                 bundleSize={bundleSize}
+                sectionIdx={sIdx}
                 onOver={() => setDropTarget({ kind: 'gap-before', section: sIdx })}
                 onDrop={() => {
                   if (dragBundle) moveBundle(dragBundle, { kind: 'gap-before', section: sIdx });
@@ -1185,7 +1267,8 @@ function CurrentHand({
               sectionIdx={sIdx}
               cardsById={cardsById}
               selected={selected}
-              onToggle={onToggle}
+              onToggle={handleToggle}
+              onCardPointerDown={onCardPointerDown}
               dragBundle={dragBundle}
               beginDrag={(cardId) => setDragBundle(bundleFor(cardId))}
               endDrag={() => { setDragBundle(null); setDropTarget(null); }}
@@ -1203,6 +1286,7 @@ function CurrentHand({
         {/* End-of-strip drop target: appears only while dragging, creates a new section at the end. */}
         <div
           className={`end-target ${dragBundle !== null ? 'visible' : ''} ${endTarget ? 'highlighted' : ''}`}
+          data-drop-end="true"
           onDragOver={(e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
@@ -1226,18 +1310,21 @@ function SectionGap({
   active,
   highlighted,
   bundleSize,
+  sectionIdx,
   onOver,
   onDrop,
 }: {
   active: boolean;
   highlighted: boolean;
   bundleSize: number;
+  sectionIdx: number; // for touch drag: elementFromPoint uses this to name the drop
   onOver: () => void;
   onDrop: () => void;
 }) {
   return (
     <div
       className={`section-gap ${active ? 'active' : ''} ${highlighted ? 'highlighted' : ''}`}
+      data-drop-gap={sectionIdx}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
@@ -1261,6 +1348,7 @@ function HandSection({
   cardsById,
   selected,
   onToggle,
+  onCardPointerDown,
   dragBundle,
   beginDrag,
   endDrag,
@@ -1273,6 +1361,7 @@ function HandSection({
   cardsById: Map<string, Card>;
   selected: Set<string>;
   onToggle: (id: string) => void;
+  onCardPointerDown: (e: React.PointerEvent, cardId: string) => void;
   dragBundle: DragBundle | null;
   beginDrag: (cardId: string) => void;
   endDrag: () => void;
@@ -1337,7 +1426,9 @@ function HandSection({
             )}
             <div
               className={`hand-slot ${isDragged ? 'dragging' : ''}`}
+              data-drop-slot={`${sectionIdx}-${idx}`}
               draggable
+              onPointerDown={(e) => onCardPointerDown(e, cardId)}
               onDragStart={(e) => {
                 e.dataTransfer.setData('text/plain', cardId);
                 e.dataTransfer.effectAllowed = 'move';

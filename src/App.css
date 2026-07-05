@@ -1660,7 +1660,18 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   padding: 3px 8px;
   border-radius: 999px;
 }
-.hand-slot { cursor: grab; position: relative; }
+.hand-slot {
+  cursor: grab;
+  position: relative;
+  /* Touch drag depends on pointer events firing without the browser
+     intercepting for scroll/zoom. touch-action: none tells the browser
+     "this element handles its own touches"; user-select prevents the
+     card text from turning into a highlight-select on long press. */
+  touch-action: none;
+  -webkit-user-select: none;
+          user-select: none;
+  -webkit-touch-callout: none;
+}
 .hand-slot:active { cursor: grabbing; }
 .hand-slot.dragging { opacity: 0.3; }
 
