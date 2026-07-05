@@ -2918,9 +2918,23 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
     scrollbar-width: thin;
     flex-shrink: 0;
   }
-  /* Hide the hand-label — its info (name, team, card count) duplicates
-     what the topbar shows. Actual class is inside CurrentHand. */
-  .seat-bottom .hand-label { display: none; }
+  /* Keep the hand-label row but hide the text portion (player name /
+     team / count / drag hint — redundant with the top strip). The
+     Auto-sort button stays visible, right-aligned. */
+  .seat-bottom .hand-label {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 4px;
+    min-height: 0;
+  }
+  .seat-bottom .hand-label > span { display: none; }
+  .seat-bottom .hand-label .ghost-btn {
+    padding: 4px 10px;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    border-radius: 999px;
+  }
 
   /* Topbar compressed */
   .topbar {
