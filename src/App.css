@@ -2979,32 +2979,76 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
     line-height: 1.4;
   }
 
-  /* Piles + Bukhara compact */
-  .piles { padding: 4px; gap: 10px; }
-  .pile { min-width: 0; gap: 3px; }
+  /* Piles + Bukhara compact — cards themselves shrink way down so the
+     melds row can breathe. The deck/discard graphics were still at
+     desktop 68x96, which alone took most of the middle row height.
+     36x50 keeps them recognisable as cards without dominating. */
+  .piles { padding: 2px 4px; gap: 8px; }
+  .pile { min-width: 0; gap: 2px; }
   .pile-label { font-size: 8px; letter-spacing: 1px; }
   .bhukara-side .pile-label { font-size: 8px; }
-  .discard-fan { padding-left: 20px; min-height: 46px; }
-  /* Bukhara-side chip: just show the count, don't try to fit the pile
-     graphic in a 84px chip that has to also hold "BUKHARA (13)". */
+  /* Shrink every card variant that appears inside a pile or the Bukhara
+     chip. Overrides .pc-md / .pc-sm / .pc-lg unconditionally. */
+  .pile .pc, .pile .pc-back, .pile .pc-md, .pile .pc-lg,
+  .bhukara-side .pc, .bhukara-side .pc-back, .bhukara-side .pc-md {
+    --pc-w: 36px !important;
+    --pc-h: 50px !important;
+    width: 36px !important;
+    height: 50px !important;
+    border-radius: 5px;
+  }
+  .discard-fan { padding-left: 12px; min-height: 40px; }
+  .discard-fan .pc { --pc-w: 32px !important; --pc-h: 44px !important; width: 32px !important; height: 44px !important; }
+
+  /* Bukhara-side chip in the top-right corner — count + a tiny card
+     graphic beside it, no more than the 84px column allows. */
   .bhukara-side {
-    padding: 4px 6px;
+    padding: 2px 6px;
     background: var(--panel-bg-strong);
     border-radius: 12px;
     font-size: 10px;
+    align-items: center;
   }
-  .bhukara-side .stacked-cards { transform: scale(0.5); transform-origin: center; margin: -12px; }
+  .bhukara-side .stacked-cards {
+    transform: scale(0.45);
+    transform-origin: center;
+    margin: -14px -6px;
+  }
 
-  /* Team boxes side by side (desktop layout) with tight spacing. */
-  .team-boxes { grid-template-columns: 1fr 1fr; gap: 6px; max-width: none; }
-  .team-box { padding: 5px 8px; min-height: 40px; border-radius: 8px; }
-  .team-box-header { font-size: 10px; margin-bottom: 2px; }
+  /* Team boxes get the LION'S share of vertical space now that piles are
+     small. Each box is a scrollable column so it can hold many melds. */
+  .team-boxes { grid-template-columns: 1fr 1fr; gap: 6px; max-width: none; flex: 1; min-height: 0; }
+  .team-box {
+    padding: 5px 8px;
+    min-height: 60px;
+    border-radius: 8px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .team-box-header { font-size: 10px; margin-bottom: 2px; position: sticky; top: 0; background: inherit; }
   .meld-strip { padding: 3px 6px; margin: 2px 0; border-radius: 6px; }
   .meld-strip-label { font-size: 8px; letter-spacing: 0.5px; }
+  /* Shrink meld-strip cards too so a 4-card meld doesn't blow the box. */
+  .meld-strip .pc, .meld-strip .pc-md {
+    --pc-w: 30px !important;
+    --pc-h: 42px !important;
+    width: 30px !important;
+    height: 42px !important;
+    border-radius: 4px;
+  }
   /* "No melds yet" empty-state text is a lot of vertical bloat when both
      boxes are empty at the start of a match. Kill it in landscape — the
      box header already carries the meaning. */
   .empty-melds { display: none; }
+  /* Make the middle row (piles + team boxes) a flex column so team-boxes
+     can flex-grow into the reclaimed space. */
+  .table > .table-center {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .table > .table-center > .piles { flex-shrink: 0; }
+  .table > .table-center > .team-boxes { flex: 1; }
 
   /* Turn status becomes a slim inline chip (was a big banner). */
   .turn-status {
