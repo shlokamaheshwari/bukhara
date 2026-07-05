@@ -2873,14 +2873,18 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
     grid-template-columns: 76px minmax(0, 1fr) 76px;
     grid-template-rows: 52px minmax(130px, 1fr) 138px;
     gap: 4px;
-    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+    /* Edge-to-edge: no margin/padding on left/right so the toolbar +
+       hand strip extend fully to the viewport edges. Safe-area insets
+       still apply on notched iPhones so content doesn't slide under
+       the notch. */
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-top: calc(6px + env(safe-area-inset-top, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     margin: 0;
     min-height: 0;    /* undo desktop's 620px */
     height: 100%;
     flex: 1;
-    /* Keep the top-left corner reserved for the fixed hamburger button
-       so it doesn't overlap the partner avatar in row 1. */
-    padding-top: calc(6px + env(safe-area-inset-top, 0px));
     position: relative; /* anchors the absolutely-positioned .piles */
   }
   /* Desktop grid assignments already put seats in the right positions;
@@ -2918,15 +2922,22 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
     scrollbar-width: thin;
     flex-shrink: 0;
   }
-  /* Keep the hand-label row but hide the text portion (player name /
-     team / count / drag hint — redundant with the top strip). The
-     Auto-sort button stays visible, right-aligned. */
+  /* Auto-sort floats over the hand strip's top-right corner so it
+     doesn't steal a whole row from the hand cards. It sits on top of
+     the strip; cards under it can still be reached by scrolling the
+     strip horizontally. */
+  .seat-bottom { position: relative; }
   .seat-bottom .hand-label {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    padding: 0 4px;
+    padding: 0;
     min-height: 0;
+    position: absolute;
+    top: 44px;                 /* right below the toolbar */
+    right: 6px;
+    z-index: 10;
+    pointer-events: none;      /* container passes through; button re-enables */
   }
   .seat-bottom .hand-label > span { display: none; }
   .seat-bottom .hand-label .ghost-btn {
@@ -2934,6 +2945,10 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
     font-size: 10px;
     letter-spacing: 0.5px;
     border-radius: 999px;
+    pointer-events: auto;      /* the button IS clickable */
+    background: color-mix(in srgb, var(--panel-bg-strong) 88%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
   /* Topbar compressed */
