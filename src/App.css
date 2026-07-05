@@ -2696,37 +2696,191 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   .reveal-text { font-size: 14px; }
 }
 
-/* Landscape phones — keep the DESKTOP table shape (opponents around
-   the center, hand at the bottom) and just scale everything down to
-   fit 812x375. This is what commercial mobile card games do; stacking
-   4 rows here makes each row ~90px which squashes cards below the
-   readable threshold.
+/* Hamburger + mobile drawer — visible only on phone-shaped viewports.
+   Desktop hides them entirely; the topbar owns everything. */
+.mobile-menu-btn { display: none; }
+.mobile-menu-backdrop { display: none; }
 
-   The one thing we hard-override from the desktop grid is min-height:
-   desktop sets it to 620px which won't fit in a 375px viewport. */
+/* Landscape phones — mobile-native redesign:
+   - Topbar HIDDEN entirely (saves 50px of vertical budget).
+   - Hamburger (☰) fixed at top-left → opens a bottom-sheet drawer with
+     theme / sound / scores / new-game.
+   - Opponents become compact corner chips (avatar + count only, no box).
+   - Center gets ~55% of the height for piles + team melds.
+   - Hand + toolbar pinned at the bottom, cards at 48x68 for readability. */
 @media (orientation: landscape) and (max-height: 500px) {
   .table-app {
     height: 100vh;    /* fallback */
     height: 100dvh;   /* respects browser chrome */
     overflow: hidden;
   }
-  .topbar { flex-shrink: 0; }
 
-  /* Restore the desktop 3-col table layout. Compressed columns for
-     opponent seats, tight rows so the center + hand both fit.
-     Row 3 (hand + toolbar) MUST stay bounded — otherwise the natural
-     height of a wrapping toolbar + hand strip eats the middle row and
-     the melds/piles disappear. Sized 160px = ~44 toolbar + ~92 hand
-     with slight padding. Middle row gets the rest. */
+  /* Kill the topbar — its info moves into the hamburger drawer. */
+  .topbar { display: none !important; }
+  /* Also kill the fixed floating theme controls (top-right) — the
+     drawer holds those now. */
+  .theme-controls { display: none !important; }
+
+  /* Hamburger button — fixed top-left, always visible during play. */
+  .mobile-menu-btn {
+    display: flex;
+    position: fixed;
+    top: calc(6px + env(safe-area-inset-top, 0px));
+    left: calc(6px + env(safe-area-inset-left, 0px));
+    z-index: 60;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel-bg-strong);
+    color: var(--text-primary);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Drawer backdrop covers the whole viewport when open. */
+  .mobile-menu-backdrop {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+    animation: mobileMenuFade 0.18s ease-out;
+  }
+  @keyframes mobileMenuFade {
+    from { background: rgba(0, 0, 0, 0); }
+    to   { background: rgba(0, 0, 0, 0.55); }
+  }
+
+  .mobile-menu-sheet {
+    width: 100%;
+    max-width: 640px;
+    background: var(--panel-bg-strong);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px 16px 0 0;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+    animation: mobileMenuSlide 0.24s cubic-bezier(0.34, 1.4, 0.55, 1);
+  }
+  @keyframes mobileMenuSlide {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  .mobile-menu-title {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+    text-align: center;
+    margin-bottom: 2px;
+  }
+
+  .mobile-menu-scores {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .mobile-menu-score {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+  }
+  .mobile-menu-score.team-a { border-color: var(--team-a); }
+  .mobile-menu-score.team-b { border-color: var(--team-b); }
+  .mobile-menu-score-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .mobile-menu-score.team-a .mobile-menu-score-label { color: var(--team-a); }
+  .mobile-menu-score.team-b .mobile-menu-score-label { color: var(--team-b); }
+  .mobile-menu-score-val {
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .mobile-menu-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .mobile-menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 12px 8px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    min-height: 60px;
+  }
+  .mobile-menu-item-icon { font-size: 18px; line-height: 1; }
+  .mobile-menu-item-hint {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .mobile-menu-sound { align-items: center; justify-content: center; }
+  .mobile-menu-sound button { border: none; background: transparent; padding: 0; }
+  .mobile-menu-newgame {
+    background: color-mix(in srgb, var(--accent) 12%, var(--panel-bg));
+    border-color: var(--accent);
+  }
+  .mobile-menu-close {
+    padding: 10px;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* With the topbar gone, the whole viewport is the play area.
+     Row 1 is a slim opponents strip; row 2 is the FELT — piles + team
+     meld boxes get ~55% of the screen; row 3 pins the hand + toolbar.
+     Left column is intentionally slim (opp-l chip) — center gets the
+     lion's share of horizontal room too. */
   .table {
     display: grid;
-    grid-template-columns: 90px minmax(0, 1fr) 90px;
-    grid-template-rows: 50px minmax(80px, 1fr) 160px;
+    grid-template-columns: 84px minmax(0, 1fr) 84px;
+    grid-template-rows: 44px minmax(120px, 1fr) 140px;
     gap: 4px;
-    padding: 4px;
-    margin: 4px;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+    margin: 0;
     min-height: 0;    /* undo desktop's 620px */
+    height: 100%;
     flex: 1;
+    /* Keep the top-left corner reserved for the fixed hamburger button
+       so it doesn't overlap the partner avatar in row 1. */
+    padding-top: calc(6px + env(safe-area-inset-top, 0px));
   }
   /* Desktop grid assignments already put seats in the right positions;
      the portrait-only media query above doesn't apply so those rules
@@ -2789,52 +2943,111 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   .theme-pack-toggle { height: 30px; padding: 0 8px; font-size: 12px; }
   .theme-pack-label { font-size: 9px; }
 
-  /* Opponent seats: vertical stack of avatar + name + count, small. */
+  /* Opponent CHIPS — avatar + tiny count, NO box background. The
+     desktop-style panel treatment reads as "webby" on a phone; commercial
+     card games use bare avatar chips instead so the felt shows through. */
   .seat-summary {
-    padding: 4px 6px;
+    padding: 0;
     min-width: 0;
     gap: 3px;
-    border-radius: 10px;
+    border-radius: 0;
     flex-direction: column;
     align-items: center;
     text-align: center;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
   }
-  .seat-avatar-wrap, .seat-avatar { width: 30px; height: 30px; font-size: 12px; }
+  .seat-avatar-wrap, .seat-avatar { width: 32px; height: 32px; font-size: 13px; }
+  .seat-avatar {
+    /* Chunkier ring so the bare avatar reads as its own object on the felt. */
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.4),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.25);
+  }
   .seat-turn-glow { inset: -3px; }
   .team-dot { width: 8px; height: 8px; }
   .seat-role { display: none; }
-  .seat-name { font-size: 10px; }
-  .seat-count { font-size: 8px; letter-spacing: 0.5px; }
+  .seat-name { display: none; }
+  .seat-count {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    padding: 1px 6px;
+    background: var(--panel-bg-strong);
+    border-radius: 999px;
+    line-height: 1.4;
+  }
 
   /* Piles + Bukhara compact */
-  .piles { padding: 6px; gap: 10px; }
-  .pile { min-width: 0; gap: 4px; }
+  .piles { padding: 4px; gap: 10px; }
+  .pile { min-width: 0; gap: 3px; }
   .pile-label { font-size: 8px; letter-spacing: 1px; }
   .bhukara-side .pile-label { font-size: 8px; }
   .discard-fan { padding-left: 20px; min-height: 46px; }
+  /* Bukhara-side chip: just show the count, don't try to fit the pile
+     graphic in a 84px chip that has to also hold "BUKHARA (13)". */
+  .bhukara-side {
+    padding: 4px 6px;
+    background: var(--panel-bg-strong);
+    border-radius: 12px;
+    font-size: 10px;
+  }
+  .bhukara-side .stacked-cards { transform: scale(0.5); transform-origin: center; margin: -12px; }
 
   /* Team boxes side by side (desktop layout) with tight spacing. */
   .team-boxes { grid-template-columns: 1fr 1fr; gap: 6px; max-width: none; }
-  .team-box { padding: 6px 8px; min-height: 50px; border-radius: 8px; }
-  .team-box-header { font-size: 10px; margin-bottom: 4px; }
-  .meld-strip { padding: 4px 6px; margin: 2px 0; border-radius: 6px; }
+  .team-box { padding: 5px 8px; min-height: 40px; border-radius: 8px; }
+  .team-box-header { font-size: 10px; margin-bottom: 2px; }
+  .meld-strip { padding: 3px 6px; margin: 2px 0; border-radius: 6px; }
   .meld-strip-label { font-size: 8px; letter-spacing: 0.5px; }
+  /* "No melds yet" empty-state text is a lot of vertical bloat when both
+     boxes are empty at the start of a match. Kill it in landscape — the
+     box header already carries the meaning. */
+  .empty-melds { display: none; }
 
-  .turn-status { font-size: 10px; padding: 3px 10px; }
-  .turn-status strong { font-size: 11px; }
+  /* Turn status becomes a slim inline chip (was a big banner). */
+  .turn-status {
+    font-size: 10px;
+    padding: 2px 10px;
+    margin: 2px auto 0;
+    display: inline-block;
+    align-self: center;
+  }
+  .turn-status strong { font-size: 10px; }
 
-  /* Toolbar tight */
-  .toolbar { padding: 4px 6px; gap: 4px; margin-bottom: 4px; }
-  .toolbar-group { gap: 3px; }
+  /* Toolbar as a floating action strip: primary actions dominate, the
+     secondary ones (Meld/Sequence/Triplet, deck discard-pick) are quieter.
+     Labels ("DRAW", "MELD") hidden — icons + button text carry the meaning. */
+  .toolbar {
+    padding: 4px 6px;
+    gap: 6px;
+    margin-bottom: 2px;
+  }
+  .toolbar-group { gap: 4px; }
   .toolbar-group + .toolbar-group { padding-left: 6px; border-left: none; }
-  .toolbar-label { font-size: 8px; margin-right: 1px; }
+  /* Hide the "Draw" / "Meld" section labels — they're clutter at phone width. */
+  .toolbar .toolbar-label { display: none; }
   .tb-btn {
-    padding: 7px 10px;
-    min-height: 38px;   /* still hit-target-friendly */
+    padding: 6px 10px;
+    min-height: 38px;
     font-size: 10px;
     letter-spacing: 0.2px;
+    border-radius: 999px;
   }
-  .selected-count { padding: 3px 6px; font-size: 9px; }
+  /* Primary/major buttons get more weight: bigger padding, bold text,
+     accent-colored fill so the eye jumps to them. */
+  .tb-btn.tb-major {
+    padding: 8px 14px;
+    min-height: 40px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .tb-btn.tb-primary.tb-major {
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .selected-count { padding: 3px 8px; font-size: 9px; flex-shrink: 0; }
 
   /* Hand strip + cards — sized to the exact card height so the strip
      doesn't add vertical bloat inside the 160-height seat-bottom. */

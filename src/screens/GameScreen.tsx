@@ -108,6 +108,10 @@ export default function GameScreen(props: GameScreenProps = {}) {
     useState<{ team: 'A' | 'B'; total: number } | null>(null);
   // Score-chip popover: shows the team's per-match history when clicked.
   const [historyOpen, setHistoryOpen] = useState<'A' | 'B' | null>(null);
+  // Mobile-only overflow menu — the topbar is hidden on phone landscape to
+  // free vertical space; this drawer surfaces theme / sound / scores / new
+  // game inside a bottom sheet triggered by the corner hamburger.
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const match = game.currentMatch;
   // Whose "view" is at the bottom of the table:
@@ -453,6 +457,82 @@ export default function GameScreen(props: GameScreenProps = {}) {
           <button className="minor" onClick={onNewGame}>New game</button>
         </div>
       </header>
+
+      {/* Mobile-only hamburger: fixed at top-left corner, opens drawer. */}
+      <button
+        className="mobile-menu-btn"
+        onClick={() => setMobileMenuOpen(true)}
+        aria-label="Open menu"
+      >
+        ☰
+      </button>
+
+      {/* Mobile bottom-sheet drawer: theme / sound / scores / new game.
+          On desktop this is hidden by CSS and the topbar owns everything. */}
+      {mobileMenuOpen && (
+        <div className="mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-menu-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-menu-title">Bukhara · Match {match.matchNumber}</div>
+            <div className="mobile-menu-scores">
+              {(['A', 'B'] as const).map((t) => {
+                const meldPts = match.teams[t].sequenceBox.reduce(
+                  (s, m) => s + meldCardTotal(m) + meldSizeBonus(m),
+                  0,
+                );
+                return (
+                  <div key={t} className={`mobile-menu-score team-${t.toLowerCase()}`}>
+                    <span className="mobile-menu-score-label">Team {t}</span>
+                    <span className="mobile-menu-score-val">{meldPts}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mobile-menu-row">
+              {props.themePack && props.onToggleThemePack && (() => {
+                const meta = {
+                  editorial: { icon: '⛰', short: 'Editorial' },
+                  hotd: { icon: '🐉', short: 'HotD' },
+                  terminal: { icon: '▊', short: 'Terminal' },
+                  sakura: { icon: '🌸', short: 'Sakura' },
+                  worldsfinest: { icon: '🦸', short: "World's Finest" },
+                }[props.themePack];
+                return (
+                  <button className="mobile-menu-item" onClick={props.onToggleThemePack}>
+                    <span className="mobile-menu-item-icon">{meta.icon}</span>
+                    <span>{meta.short}</span>
+                    <span className="mobile-menu-item-hint">tap to switch theme</span>
+                  </button>
+                );
+              })()}
+              {props.themeMode && props.onToggleThemeMode && (
+                <button className="mobile-menu-item" onClick={props.onToggleThemeMode}>
+                  <span className="mobile-menu-item-icon">
+                    {props.themeMode === 'light' ? '☾' : '☀'}
+                  </span>
+                  <span>{props.themeMode === 'light' ? 'Dark mode' : 'Light mode'}</span>
+                </button>
+              )}
+              <div className="mobile-menu-item mobile-menu-sound">
+                <SoundToggle />
+                <span>Turn chime</span>
+              </div>
+              <button
+                className="mobile-menu-item mobile-menu-newgame"
+                onClick={() => { setMobileMenuOpen(false); onNewGame(); }}
+              >
+                <span className="mobile-menu-item-icon">↺</span>
+                <span>New game</span>
+              </button>
+            </div>
+            <button
+              className="mobile-menu-close"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="table">
         {/* Bhukara pile lives off to the side of the main play area. */}
@@ -987,9 +1067,9 @@ function ActionsToolbar({
   return (
     <div className="toolbar">
       {companionMode && <Companion mode={companionMode} />}
-      <div className="toolbar-group">
+      <div className="toolbar-group tb-group-draw">
         <span className="toolbar-label">Draw</span>
-        <button className="tb-btn" onClick={onDraw} disabled={!canDraw}>
+        <button className="tb-btn tb-major" onClick={onDraw} disabled={!canDraw}>
           <span className="tb-icon">↓</span> Deck ({match.stock.length})
         </button>
         <button className="tb-btn" onClick={onPickDiscard} disabled={!canPick}>
@@ -997,7 +1077,7 @@ function ActionsToolbar({
         </button>
       </div>
 
-      <div className="toolbar-group">
+      <div className="toolbar-group tb-group-meld">
         <span className="toolbar-label">Meld</span>
         <button className="tb-btn" onClick={onDropSequence} disabled={!canDropMeld}>
           Sequence
@@ -1016,7 +1096,7 @@ function ActionsToolbar({
         <span className={`selected-count ${selectedCount > 0 ? 'active' : ''}`}>
           {selectedCount} selected
         </span>
-        <button className="tb-btn tb-primary" onClick={onDiscard} disabled={!canDiscard}>
+        <button className="tb-btn tb-primary tb-major" onClick={onDiscard} disabled={!canDiscard}>
           Discard & end turn
         </button>
         {showNextMatch && (
