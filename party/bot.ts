@@ -727,42 +727,54 @@ function pickBestDrop(
   // Triplets — only after team has a pure sequence in box. Mid-rank ranks
   // (4-10) are the "connector" cards for sequences; locking three of them
   // into a triplet forfeits every 3-4-5, 4-5-6, 5-6-7 you might have grown.
-  // Penalize those so a bigger pure sequence or a high-rank triplet beats
-  // them out, unless we're in endgame / racing (where closing beats
-  // preserving flexibility).
+  //
+  // NEW HARD RULE (from user feedback showing Trip 10 + Trip 8 keep
+  // dropping): a mid-rank triplet must be 4+ cards to justify dropping —
+  // if the bot only has 3 of the rank, HOLD them. 3 mid-rank cards are
+  // more useful as sequence material than as a bare triplet. Only relax
+  // the rule when bhukara is out (real racing) or stock is thin.
+  const midHoldOk =
+    !situation.bhukaraTaken && situation.stockRemaining > 15;
   if (situation.hasPureInBox) {
     for (const trip of plan.triplets) {
       if (trip.length < 3) continue;
       if (hand.length - trip.length < 1) continue;
+      const rank = trip[0].card.rank;
+      const isMidRank = rank >= 4 && rank <= 10;
+      if (isMidRank && trip.length < 4 && midHoldOk) continue;
       const pts = trip.reduce((s, m) => s + cardValue(m.card.rank), 0);
-      const penalty = tripletDropPenalty(trip[0].card.rank, situation, aggressive);
+      const penalty = tripletDropPenalty(rank, situation, aggressive);
       candidates.push({
         input: { type: 'move-drop-meld', input: { kind: 'triplet', cards: trip } },
         score: pts + trip.length * 4 - penalty,
       });
     }
   }
-  // Impure sequences — 2s go to jokers. The user complaint that surfaced
-  // this tightening: bot dropped "SEQ ♣ 40PT IMPURE" as 8-9-2j-J (4 cards,
-  // 1 joker). Impure < 7 earns ZERO size bonus, so the joker was spent for
-  // raw card value only, when it was worth several times more saved for a
-  // triplet ganastha jump (+100) or a bigger bridge later.
+  // Impure sequences — 2s go to jokers. Even in aggressive/endgame mode
+  // the bot still can't get away with tiny joker-padded drops: user
+  // showed "SEQ ♦ 25PT IMPURE 3-2j-5-6" (4 cards, 1 joker) dropping in
+  // an endgame push. A 4-card impure earns ZERO size bonus, so the
+  // joker was consumed for raw card value while being worth several
+  // times more saved for a triplet ganastha jump or a bigger bridge.
   //
-  // Tightened bar:
-  //   - Non-aggressive: 1-joker needs ≥5 cards (was 4), 2-joker needs ≥6.
-  //   - Joker cost in the scorer is much higher when the meld doesn't reach
-  //     ganastha (no bonus to earn).
+  // New rule: minSize doesn't drop below 5 (1-joker) / 6 (2-joker) UNLESS
+  // the hand is truly desperate (≤3 cards) — real close-to-closing state.
+  // Aggressive alone (small hand, thin stock) isn't enough. And the joker
+  // cost for non-ganastha impures goes 22 → 32, so even 5-card impures
+  // lose out to alternatives.
+  const impureDesperate = hand.length <= 3;
   if (situation.hasPureInBox) {
     for (const seq of plan.impureSequences) {
       const jokerCount = seq.filter((m) => m.isJoker).length;
-      const minSize = aggressive ? 3 : (jokerCount <= 1 ? 5 : 6);
+      const minSize = impureDesperate ? 3 : (jokerCount <= 1 ? 5 : 6);
       if (seq.length < minSize) continue;
       if (hand.length - seq.length < 1) continue;
       const pts = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
       const reachesGanastha = seq.length >= 7;
       // A joker in a ganastha impure earns its +100 bonus; anywhere shorter
-      // it's just consuming a wildcard for card-value scraps.
-      const jokerCost = reachesGanastha ? 10 : 22;
+      // it's just consuming a wildcard for card-value scraps. Bumped from
+      // 22 → 32 to make marginal impure drops score negative.
+      const jokerCost = reachesGanastha ? 10 : 32;
       candidates.push({
         input: { type: 'move-drop-meld', input: { kind: 'sequence', cards: seq } },
         score: pts + seq.length * 5 - jokerCount * jokerCost,
