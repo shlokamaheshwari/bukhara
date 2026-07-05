@@ -2471,34 +2471,59 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   }
   .theme-pack-label { font-size: 10px; }
 
-  /* Table — collapse to a vertical stack. */
+  /* Mobile layout — a 4-row CSS Grid pinned to the viewport, so the game
+     works like a native card game (opponents strip at top, hand + toolbar
+     glued to the bottom, meld area scrolls internally when melds pile up)
+     instead of a scrolling web page. Previous approach used flex-direction:
+     column + flex-wrap + flex-basis: 33% which — under column direction —
+     made flex-basis mean height, and the three opponent seats stacked
+     vertically instead of forming a strip. Grid gives us named areas that
+     do exactly what the diagram shows. */
+  .table-app {
+    height: 100vh;    /* fallback */
+    height: 100dvh;   /* dynamic viewport — respects browser chrome */
+    overflow: hidden;
+  }
+  .topbar { flex-shrink: 0; }
   .table {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 8px;
-    margin: 6px;
-    min-height: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "opp-l opp-t opp-r"
+      "bhukara bhukara bhukara"
+      "melds melds melds"
+      "hand hand hand";
+    gap: 6px;
+    padding: 6px;
+    margin: 4px;
+    min-height: 0;
     border-radius: 14px;
   }
 
-  /* Bhukara + opponents together in a horizontal strip at top. */
+  /* Bhukara pile — one row band above the melds. */
   .bhukara-side {
+    grid-area: bhukara;
     flex-direction: row;
     justify-content: space-around;
+    align-items: center;
     padding: 8px 10px;
     gap: 6px;
-    order: 2;
+    max-width: none;
   }
   .bhukara-side .pile-label { font-size: 9px; letter-spacing: 1.5px; }
 
-  /* Opponent seats become a compact horizontal strip. */
+  /* Opponent seat cards — compact horizontal chip in each of the three grid columns. */
+  .table > .seat-top    { grid-area: opp-t; }
+  .table > .seat-left   { grid-area: opp-l; }
+  .table > .seat-right  { grid-area: opp-r; }
   .seat-top, .seat-left, .seat-right {
-    order: 1;
-    display: inline-flex;
+    display: flex;
     justify-content: center;
     align-items: center;
     padding: 0;
+    min-width: 0;
+    max-width: none;
   }
   .seat-summary {
     padding: 8px 10px;
@@ -2515,47 +2540,20 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   .seat-role { display: none; }
   .seat-name { font-size: 12px; }
   .seat-count { font-size: 9px; margin-top: 2px; letter-spacing: 1px; }
-
-  /* Wrap the three opponent seats into one row. */
-  .table > .seat-top, .table > .seat-left, .table > .seat-right {
-    display: none; /* individually hidden — the combined mobile row is injected via JS-free flex trick below */
-  }
-
-  /* Use CSS grid to place all opponents in a single row on mobile
-     by re-ordering flex children — we show them but in one horizontal band. */
-  .table > .seat-top    { display: flex; order: 1; flex: 1; }
-  .table > .seat-left   { display: flex; order: 1; flex: 1; }
-  .table > .seat-right  { display: flex; order: 1; flex: 1; }
-  .table > .seat-top,
-  .table > .seat-left,
-  .table > .seat-right {
-    min-width: 0;
-    padding: 0;
-  }
-  .table > .seat-top    { order: 1.1; }
-  .table > .seat-left   { order: 1.2; }
-  .table > .seat-right  { order: 1.3; }
-
-  /* Pack all three seats into one wrapping row using flex on .table */
-  .table {
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-  .seat-top, .seat-left, .seat-right {
-    flex-basis: 33%;
-    max-width: 33%;
-  }
   .seat-summary .seat-cards { display: none; }
 
-  /* Center area — full width. */
+  /* Melds area — the ONLY scrollable region. Fills the middle grid row and
+     scrolls internally when the number of melds exceeds available height. */
   .table-center {
-    order: 3;
-    flex: 1 1 100%;
+    grid-area: melds;
+    max-width: none;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     gap: 10px;
   }
-  .bhukara-side {
-    order: 2;
-    flex: 1 1 100%;
+  .table > .seat-bottom {
+    grid-area: hand;
     max-width: none;
   }
   .piles {
@@ -2589,8 +2587,6 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
 
   /* Bottom seat + hand + toolbar. */
   .seat-bottom {
-    order: 4;
-    flex: 1 1 100%;
     padding: 10px 8px 12px;
     border-radius: 14px;
   }
