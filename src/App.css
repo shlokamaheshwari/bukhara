@@ -2430,6 +2430,13 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
    height query, iPhone landscape (812x375) would try to render the full
    desktop layout in 375px of vertical space and fall apart. */
 @media (max-width: 768px), (max-height: 500px) {
+  /* iOS Safari zooms into any input under 16px on focus and doesn't zoom
+     back out. Push every input to a safe base so the page never gets
+     locked into a zoomed state mid-flow. */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
   /* Header — wrap and shrink. Pushes down by safe-area-inset-top so the
      notch / dynamic island doesn't eat the app title. */
   .topbar {
