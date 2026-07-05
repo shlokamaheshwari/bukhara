@@ -497,12 +497,18 @@ export class RoomDO extends DurableObject<Env> {
     if (!this.game) return null;
     const yourSeat = this.seatFor(you.username);
     const match = this.game.currentMatch;
+    // Once the match is over (someone closed, or a void triggered) the
+    // game is decided — reveal every hand so the MatchEndModal can
+    // correctly compute the "Held (−)" penalty from each team's leftover
+    // cards. During play, opponents' hands stay redacted.
+    const matchOver = match.phase !== 'playing';
     const redactedPlayers = {} as typeof match.players;
     const handSizes: Record<0 | 1 | 2 | 3, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
     for (const pid of [0, 1, 2, 3] as PlayerId[]) {
       const p = match.players[pid];
       handSizes[pid] = p.hand.length;
-      redactedPlayers[pid] = pid === yourSeat ? p : { ...p, hand: [] };
+      redactedPlayers[pid] =
+        (matchOver || pid === yourSeat) ? p : { ...p, hand: [] };
     }
     const redactedGame: Game = {
       ...this.game,
