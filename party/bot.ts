@@ -436,15 +436,12 @@ function pickMeldOrDiscard(
     hand.length <= 5 || situation.oppMinHand <= 4 || situation.stockRemaining <= 10;
   const racing = situation.bhukaraTaken;
 
-  // Deadlock guard: for a 1000+ team that hasn't done its first drop yet, a
-  // drop that doesn't push the turn total to >=100 pts will make the eventual
-  // discard fail with "must total >=100", and the whole bot turn deadlocks.
-  // If we can't credibly reach 100 with the cards in hand, refuse to drop
-  // anything this turn — just discard and try again next turn.
+  // Deadlock guard: for a 1000+ team, EVERY drop turn's melds must total
+  // ≥100 pts (not just the first). Dropping small melds that can't reach 100
+  // would rescue the turn with a -200 penalty. If we can't credibly reach
+  // 100 with the cards in hand, refuse to drop anything — just discard.
   const dropsWouldDeadlock =
-    !situation.firstDropDone &&
-    situation.mustFirstDropReach100 &&
-    !canReachHundred(plan);
+    situation.mustFirstDropReach100 && !canReachHundred(plan);
   if (dropsWouldDeadlock) {
     const recent = match.discard.slice(-6);
     return { type: 'move-discard', cardId: pickCardToDiscard(hand, situation, recent) };

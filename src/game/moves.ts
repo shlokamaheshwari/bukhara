@@ -384,20 +384,28 @@ export function discard(match: Match, cardId: string): MoveResult {
   // to the player's hand) and the team takes a -200 penalty added to the
   // match score. The player still discards, the turn still ends. The mistake
   // has a cost but the game keeps moving.
-  const firstDropThisTurn =
-    !team.firstDropDone && match.meldsCreatedThisTurn.length > 0;
+  const anyDropThisTurn = match.meldsCreatedThisTurn.length > 0;
+  const firstDropThisTurn = !team.firstDropDone && anyDropThisTurn;
   let rescueApplied = false;
   let rescuedCards: Card[] = [];
   let workingTeam = team;
   let workingHand = player.hand;
-  if (firstDropThisTurn) {
+  // Constraints on any turn a team drops new melds:
+  //   (a) the FIRST drop of the match must include a pure sequence
+  //   (b) if the team is past 1000, EVERY drop turn's melds must total >=100 pts
+  //       (not just the first — user clarified this applies to every subsequent
+  //       drop while past 1000, keeping the handicap in force all match)
+  // Either failure rescues the turn: cards return to hand, -200 penalty,
+  // discard still succeeds so the turn ends without a deadlock.
+  if (anyDropThisTurn) {
     const meldsThisTurn = team.sequenceBox.filter((m) =>
       match.meldsCreatedThisTurn.includes(m.id),
     );
     const hasPure = meldsThisTurn.some((m) => isPureSequence(m));
     const totalThisTurn = meldsThisTurn.reduce((s, m) => s + meldCardTotal(m), 0);
+    const pureRequired = firstDropThisTurn;
     const under100 = team.mustFirstDropReach100 && totalThisTurn < 100;
-    if (!hasPure || under100) {
+    if ((pureRequired && !hasPure) || under100) {
       rescueApplied = true;
       // Pull every card out of every meld dropped this turn, back into the
       // player's hand. Remove those melds from the sequenceBox.

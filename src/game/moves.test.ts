@@ -546,6 +546,76 @@ describe('1000+ rule', () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.match.teams.A.firstDropDone).toBe(true);
   });
+
+  it('team past 1000: SECOND drop turn also needs ≥100, rescues if under', () => {
+    // Team A crossed 1000. Big legal first drop happens. On a LATER turn the
+    // same team tries a small (<100 pt) new meld — this must also rescue,
+    // because the 1000+ handicap applies to every drop turn while past 1000,
+    // not just the first.
+    let m = newMatch({
+      matchNumber: 2,
+      startingPlayer: 0,
+      teamScoresBeforeMatch: { A: 1100, B: 500 },
+      playerNames: ['P1', 'P2', 'P3', 'P4'],
+      seed: 3,
+    });
+    m = { ...m, turnPhase: 'may-meld' };
+    // Simulate that the team already completed a valid first drop earlier
+    // (firstDropDone=true) with the pure sequence already in the box.
+    m = {
+      ...m,
+      teams: {
+        ...m.teams,
+        A: {
+          ...m.teams.A,
+          firstDropDone: true,
+          firstDropByPlayer: 0,
+          sequenceBox: [
+            {
+              id: 'existing',
+              kind: 'sequence',
+              suit: 'H',
+              cards: [8, 9, 10, 11, 12, 13, 1].map((r) => ({
+                card: H(r),
+                actingAs: (r === 1 ? 14 : r) as SeqPos,
+                isJoker: false,
+              })),
+            },
+          ],
+        },
+      },
+    };
+    // Now on player 0's turn the bot drops a small triplet (25 pts of card
+    // value — well under 100) and tries to discard.
+    m = withHand(m, 0, [C(3), D(3), S(3), H(4)]);
+    const step = dropMeld(m, {
+      kind: 'triplet',
+      cards: [
+        { card: C(3), isJoker: false },
+        { card: D(3), isJoker: false },
+        { card: S(3), isJoker: false },
+      ],
+    });
+    if (!step.ok) throw new Error(step.reason);
+    const r = discard(step.match, 'H4a');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      // The triplet gets rescued (removed from the box, cards back in hand),
+      // team eats another -200 penalty. The pre-existing first-drop meld stays.
+      const seat0 = ([0, 1, 2, 3] as const).find(
+        (p) => r.match.players[p].name === 'P1',
+      )!;
+      const hand = r.match.players[seat0].hand;
+      expect(hand.some((c) => c.id === 'C3a')).toBe(true);
+      expect(hand.some((c) => c.id === 'D3a')).toBe(true);
+      expect(hand.some((c) => c.id === 'S3a')).toBe(true);
+      expect(hand.some((c) => c.id === 'H4a')).toBe(false); // still discarded
+      // Only the pre-existing meld remains; the new triplet was rescued.
+      expect(r.match.teams.A.sequenceBox).toHaveLength(1);
+      expect(r.match.teams.A.sequenceBox[0].id).toBe('existing');
+      expect(r.match.teams.A.midMatchPenalty).toBe(200);
+    }
+  });
 });
 
 describe('scoring', () => {
