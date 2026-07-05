@@ -271,6 +271,50 @@ export default function GameScreen(props: GameScreenProps = {}) {
   }
   function beginAddTo(meld: Meld) {
     if (selected.size < 1) return setError('Select cards from your hand first');
+
+    // Pre-check compatibility with the target meld and give a friendly
+    // per-card error, rather than sending the request and letting the
+    // server come back with a cryptic "All non-joker cards must share a
+    // suit". Only 2s can act as jokers, so anything else that doesn't
+    // match the meld's rank (triplet) or suit (sequence) is a bad add.
+    const JOKER = 2;
+    const chosen = [...selected]
+      .map((id) => viewingPlayer.hand.find((c) => c.id === id))
+      .filter((c): c is Card => !!c);
+    if (meld.kind === 'sequence') {
+      const wrongSuit = chosen.filter(
+        (c) => c.suit !== meld.suit && c.rank !== JOKER,
+      );
+      if (wrongSuit.length > 0) {
+        const list = wrongSuit.map((c) => cardLabel(c)).join(', ');
+        return setError(
+          `${list} can't join this ${meld.suit} sequence. Only ${meld.suit} cards (or a 2 as joker) fit.`,
+        );
+      }
+      // Multiple jokers per sequence isn't allowed.
+      const addedJokers = chosen.filter((c) => c.rank === JOKER).length;
+      const existingJoker = meld.cards.some((c) => c.isJoker) ? 1 : 0;
+      if (addedJokers + existingJoker > 1) {
+        return setError('A sequence can only hold one joker at a time.');
+      }
+    } else {
+      // Triplet — everything must match rank or be a joker.
+      const wrongRank = chosen.filter(
+        (c) => c.rank !== meld.rank && c.rank !== JOKER,
+      );
+      if (wrongRank.length > 0) {
+        const list = wrongRank.map((c) => cardLabel(c)).join(', ');
+        return setError(
+          `${list} can't join this triplet of ${meld.rank}s. Only ${meld.rank}s (or a 2 as joker) fit.`,
+        );
+      }
+      const addedJokers = chosen.filter((c) => c.rank === JOKER).length;
+      const existingJoker = meld.cards.some((c) => c.isJoker) ? 1 : 0;
+      if (addedJokers + existingJoker > 1) {
+        return setError('A triplet can only hold one joker at a time.');
+      }
+    }
+
     setMeldModal(
       meld.kind === 'sequence'
         ? { kind: 'add-to-sequence', meldId: meld.id, cardIds: [...selected] }
