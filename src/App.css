@@ -2631,10 +2631,12 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   .hand-label { font-size: 10px; }
   .hand-label strong { font-size: 12px; }
   .hand-hint { display: none; }
-  /* Tighter overlap so 14 cards fit closer to a single viewport width.
-     Full width was 48*14 - 20*13 = 412px; new overlap 28 → 12*14 + 20*0 =
-     roughly 300px, still scrollable if the hand is bigger. */
-  .card-with-indicator + .card-with-indicator { margin-left: -28px; }
+  /* Card overlap on mobile. -14 leaves 34px of each 48-wide card visible
+     (rank + suit corner PLUS a clean chunk of the face) so cards read at
+     a glance instead of looking like a stack of slivers. Because the
+     strip is now overflow-x auto, we no longer need to cram everything
+     into 375px — the user can scroll to reach the far end. */
+  .card-with-indicator + .card-with-indicator { margin-left: -14px; }
 
   /* Smaller card sizes across the board when inside the hand. */
   .hand-strip .pc,
@@ -2750,7 +2752,8 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
   .hand-strip { min-height: 74px; padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px)); }
   .hand-section { min-height: 68px; padding: 3px 4px; }
   .hand-strip .pc, .hand-strip .pc-md { --pc-w: 42px; --pc-h: 60px; }
-  .card-with-indicator + .card-with-indicator { margin-left: -30px; }
+  /* Same principle at 42-wide card: leave ~30px of face visible. */
+  .card-with-indicator + .card-with-indicator { margin-left: -12px; }
 
   /* Companion widget — the toolbar becomes really short in landscape;
      shrink further and pull tight to the corner. */
@@ -2791,6 +2794,7 @@ button.minor:hover { background: var(--accent); color: var(--cream); border-colo
     --pc-w: 42px;
     --pc-h: 60px;
   }
+  .card-with-indicator + .card-with-indicator { margin-left: -12px; }
   .tb-btn { padding: 7px 8px; font-size: 10px; }
 }
 
