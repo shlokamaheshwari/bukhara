@@ -91,7 +91,7 @@ function makeTeamMatchState(id: TeamId, scoreBefore: number): TeamMatchState {
     sequenceBox: [],
     firstDropDone: false,
     firstDropByPlayer: null,
-    mustFirstDropReach100: scoreBefore > CROSS_1000,
+    mustFirstDropReach100: scoreBefore >= CROSS_1000,
     midMatchPenalty: 0,
   };
 }

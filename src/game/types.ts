@@ -69,7 +69,7 @@ export type TeamMatchState = {
   sequenceBox: Meld[];
   firstDropDone: boolean;
   firstDropByPlayer: PlayerId | null; // for 1000+ rule enforcement
-  mustFirstDropReach100: boolean; // set true when team started match past 1000
+  mustFirstDropReach100: boolean; // set true when team started match at/past 1000
   // -200 penalties incurred this match when a player tried to close their
   // turn after a failed first drop (dropped melds < 100 pts, or no pure
   // sequence). The dropped cards are returned to the player's hand.
