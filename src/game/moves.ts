@@ -390,11 +390,12 @@ export function discard(match: Match, cardId: string): MoveResult {
   let rescuedCards: Card[] = [];
   let workingTeam = team;
   let workingHand = player.hand;
-  // Constraints on any turn a team drops new melds:
-  //   (a) the FIRST drop of the match must include a pure sequence
-  //   (b) if the team is past 1000, EVERY drop turn's melds must total >=100 pts
-  //       (not just the first — user clarified this applies to every subsequent
-  //       drop while past 1000, keeping the handicap in force all match)
+  // Constraints that apply only on the turn a team makes its FIRST drop of
+  // the match:
+  //   (a) the melds dropped must include a pure sequence
+  //   (b) if the team started the match at/past 1000, those melds must total
+  //       >=100 pts. This handicap applies ONLY to the first drop — subsequent
+  //       drops that match may be any size.
   // Either failure rescues the turn: cards return to hand, -200 penalty,
   // discard still succeeds so the turn ends without a deadlock.
   if (anyDropThisTurn) {
@@ -404,7 +405,7 @@ export function discard(match: Match, cardId: string): MoveResult {
     const hasPure = meldsThisTurn.some((m) => isPureSequence(m));
     const totalThisTurn = meldsThisTurn.reduce((s, m) => s + meldCardTotal(m), 0);
     const pureRequired = firstDropThisTurn;
-    const under100 = team.mustFirstDropReach100 && totalThisTurn < 100;
+    const under100 = firstDropThisTurn && team.mustFirstDropReach100 && totalThisTurn < 100;
     if ((pureRequired && !hasPure) || under100) {
       rescueApplied = true;
       // Pull every card out of every meld dropped this turn, back into the
