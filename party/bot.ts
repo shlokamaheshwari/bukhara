@@ -374,12 +374,21 @@ function buildPlayPlan(situation: Situation): PlayPlan {
 // enormous swing, worth taking the whole pile for.
 function pileWouldCompleteMeld(hand: Card[], pile: Card[]): boolean {
   if (pile.length === 0) return false;
+  // The meld must actually USE a pile card, otherwise this returns true for
+  // any full hand that already contains a run/triplet on its own — which is
+  // almost always — and the bot would grab the pile every single turn instead
+  // of ever drawing from stock (starving the deck so the match never ends).
+  const pileIds = new Set(pile.map((c) => c.id));
   const merged = [...hand, ...pile];
   const bySuit = cardsBySuit(merged);
   for (const suit of ['H', 'D', 'C', 'S'] as Suit[]) {
-    if (longestPureRuns(bySuit[suit]).length > 0) return true;
+    for (const run of longestPureRuns(bySuit[suit])) {
+      if (run.some((c) => pileIds.has(c.id))) return true;
+    }
   }
-  if (findTriplets(merged).length > 0) return true;
+  for (const trip of findTriplets(merged)) {
+    if (trip.some((mc) => pileIds.has(mc.card.id))) return true;
+  }
   return false;
 }
 
@@ -436,6 +445,17 @@ function pickMeldOrDiscard(
     hand.length <= 5 || situation.oppMinHand <= 4 || situation.stockRemaining <= 10;
   const racing = situation.bhukaraTaken;
 
+  // Over-meld guard. Once bhukara is taken, emptying your hand on discard means
+  // *closing*, which the engine only allows if the team already has a 7+ meld.
+  // If we can't close, melding our hand down to 1 card leaves us unable to
+  // discard (every card is the last card → discard rejected → the turn
+  // deadlocks). So while closing is illegal, keep a 2-card floor for any meld
+  // that doesn't itself reach a 7-card meld; a move that *creates* a 7+ meld
+  // enables closing, so a 1-card floor is fine there.
+  const cannotClose = situation.bhukaraTaken && !situation.hasFullMeld;
+  const reserveFor = (finalMeldSize: number): number =>
+    cannotClose && finalMeldSize < 7 ? 2 : 1;
+
   // Deadlock guard: for a 1000+ team, ONLY the team's FIRST drop of the match
   // must total ≥100 pts. Starting that first drop without being able to reach
   // 100 would rescue the turn with a -200 penalty, so if we can't credibly
@@ -462,7 +482,7 @@ function pickMeldOrDiscard(
   // empty hand — every drop reduces the penalty pool and lets us close on
   // discard.
   if (situation.bhukaraMine && situation.hasFullMeld) {
-    const drop = pickBestDrop(plan, situation, hand, /* aggressive */ true);
+    const drop = pickBestDrop(plan, situation, hand, /* aggressive */ true, 3, reserveFor);
     if (drop) return drop;
   }
 
@@ -480,7 +500,7 @@ function pickMeldOrDiscard(
   // ≥100 pts. Delay unless we have a decent one so we don't burn a 3-card
   // sequence prematurely.
   if (!situation.firstDropDone) {
-    const firstDrop = pickFirstDrop(plan, situation, hand);
+    const firstDrop = pickFirstDrop(plan, situation, hand, reserveFor);
     if (firstDrop) return firstDrop;
     // No adequate first-drop candidate → skip to discarding cleverly.
   }
@@ -496,7 +516,9 @@ function pickMeldOrDiscard(
     for (const g of growth) {
       const addLen = additionLen(g);
       if (addLen === 0) continue;
-      if (hand.length - addLen < 1) continue;
+      const meld = situation.myTeamMelds.find((m) => m.id === g.meldId);
+      const finalSize = (meld?.cards.length ?? 0) + addLen;
+      if (hand.length - addLen < reserveFor(finalSize)) continue;
       if (g.kind === 'sequence' && g.seqAdd) {
         return {
           type: 'move-add-to-sequence',
@@ -519,7 +541,7 @@ function pickMeldOrDiscard(
   // options open). In endgame or racing mode we accept 3-card drops because
   // speed matters more than sizing.
   const minPure = endgame || racing ? 3 : 4;
-  const drop = pickBestDrop(plan, situation, hand, /* aggressive */ endgame, minPure);
+  const drop = pickBestDrop(plan, situation, hand, /* aggressive */ endgame, minPure, reserveFor);
   if (drop) return drop;
 
   // ---------- Priority 5: discard ---------------------------------------
@@ -572,10 +594,11 @@ function pickFirstDrop(
   plan: PlayPlan,
   situation: Situation,
   hand: Card[],
+  reserveFor: (finalMeldSize: number) => number = () => 1,
 ): MoveMessage | null {
   const candidates = plan.pureSequences
     .slice()
-    .filter((s) => hand.length - s.length >= 1)
+    .filter((s) => hand.length - s.length >= reserveFor(s.length))
     .sort((a, b) => b.length - a.length);
   if (candidates.length === 0) return null;
   const seq = candidates[0];
@@ -707,6 +730,11 @@ function pickBestDrop(
   hand: Card[],
   aggressive: boolean,
   minPure = 3,
+  // Minimum cards to keep in hand after this drop, as a function of the meld's
+  // final size. Defaults to a 1-card floor (just enough to discard). Callers
+  // pass a stricter floor when closing is illegal — see reserveFor in
+  // pickMeldOrDiscard.
+  reserveFor: (finalMeldSize: number) => number = () => 1,
 ): MoveMessage | null {
   type Candidate = { input: MoveMessage; score: number };
   const candidates: Candidate[] = [];
@@ -717,7 +745,7 @@ function pickBestDrop(
   // small meld now rather than wait.
   for (const seq of plan.pureSequences) {
     if (seq.length < minPure) continue;
-    if (hand.length - seq.length < 1) continue;
+    if (hand.length - seq.length < reserveFor(seq.length)) continue;
     const gap = bridgesToExistingMeld(seq, situation.myTeamMelds);
     if (gap !== null && !aggressive) {
       // Hold the candidate — dropping it now locks us out of the merger.
@@ -744,7 +772,7 @@ function pickBestDrop(
   if (situation.hasPureInBox) {
     for (const trip of plan.triplets) {
       if (trip.length < 3) continue;
-      if (hand.length - trip.length < 1) continue;
+      if (hand.length - trip.length < reserveFor(trip.length)) continue;
       const rank = trip[0].card.rank;
       const isMidRank = rank >= 4 && rank <= 10;
       if (isMidRank && trip.length < 4 && midHoldOk) continue;
@@ -774,7 +802,7 @@ function pickBestDrop(
       const jokerCount = seq.filter((m) => m.isJoker).length;
       const minSize = impureDesperate ? 3 : (jokerCount <= 1 ? 5 : 6);
       if (seq.length < minSize) continue;
-      if (hand.length - seq.length < 1) continue;
+      if (hand.length - seq.length < reserveFor(seq.length)) continue;
       const pts = seq.reduce((s, m) => s + cardValue(m.card.rank), 0);
       const reachesGanastha = seq.length >= 7;
       // A joker in a ganastha impure earns its +100 bonus; anywhere shorter
